@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import ChatClient from "./ChatClient"
+import WorldHeader from "./WorldHeader"
 
 export default async function WorldPage({
   params
@@ -22,7 +23,17 @@ export default async function WorldPage({
     },
     include: {
       character: true,
-      world: true
+      world: {
+        include: {
+          _count: {
+            select: { messages: true, members: true }
+          },
+          imports: {
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          }
+        }
+      }
     }
   })
 
@@ -52,14 +63,11 @@ export default async function WorldPage({
     }
   }))
 
+  const importDate = member.world.imports[0]?.createdAt || null
+
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
-      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3">
-        <div>
-          <h2 className="text-lg font-bold text-white">{member.world.name}</h2>
-          <p className="text-xs text-slate-400">Invite Code: <span className="font-mono text-indigo-300">{member.world.inviteCode}</span></p>
-        </div>
-      </div>
+    <div className="flex h-[calc(100vh-3.5rem)] md:h-screen flex-col">
+      <WorldHeader world={member.world} importDate={importDate} />
       
       <div className="flex-1 overflow-hidden">
         <ChatClient 

@@ -1,5 +1,6 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
+import { Sidebar } from "@/components/layout/Sidebar"
 
 export default async function WorkspaceLayout({
   children,
@@ -13,12 +14,9 @@ export default async function WorkspaceLayout({
   }
 
   return (
-    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
-      <header className="flex h-14 items-center justify-between border-b border-slate-800 bg-slate-900 px-4 shadow-sm">
-        <div className="text-xl font-bold text-indigo-400">RPWeb</div>
-        <div className="text-sm text-slate-400">{session.user.name}</div>
-      </header>
-      <main className="flex-1 overflow-y-auto">
+    <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
         {children}
       </main>
     </div>

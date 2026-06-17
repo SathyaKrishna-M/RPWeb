@@ -2,7 +2,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, LogOut } from "lucide-react"
+import { UserPlus, Globe, UploadCloud, Users, CheckCircle2, Circle } from "lucide-react"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -12,12 +12,6 @@ export default async function DashboardPage() {
     where: { userId: session.user.id }
   })
 
-  if (characters.length === 0) {
-    redirect("/characters/new")
-  }
-
-  const activeCharacter = characters[0] // Simple MVP: just use the first character
-
   const worlds = await prisma.world.findMany({
     where: {
       members: {
@@ -26,59 +20,135 @@ export default async function DashboardPage() {
     }
   })
 
-  return (
-    <div className="mx-auto max-w-4xl p-6">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Your Worlds</h1>
-          <p className="text-slate-400">Playing as {activeCharacter.name}</p>
-        </div>
-        <div className="flex gap-4">
-          <Link
-            href="/worlds/new"
-            className="flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500"
-          >
-            <Plus size={16} /> Create World
-          </Link>
-          <Link
-            href="/worlds/join"
-            className="flex items-center gap-2 rounded-md bg-slate-800 px-4 py-2 text-sm font-medium hover:bg-slate-700"
-          >
-            Join World
-          </Link>
-          <Link
-            href="/api/auth/signout"
-            className="flex items-center gap-2 rounded-md border border-slate-700 bg-transparent px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
-          >
-            <LogOut size={16} />
-          </Link>
+  const hasCharacters = characters.length > 0
+  const hasWorlds = worlds.length > 0
+
+  if (!hasCharacters || !hasWorlds) {
+    // ONBOARDING VIEW
+    return (
+      <div className="mx-auto max-w-3xl p-6 pt-12">
+        <h1 className="text-3xl font-bold text-white mb-2">Welcome to your new adventure.</h1>
+        <p className="text-slate-400 mb-12">Let's get you set up in three simple steps.</p>
+
+        <div className="space-y-6">
+          {/* STEP 1 */}
+          <div className={`rounded-xl border p-6 transition-all ${hasCharacters ? "border-slate-800 bg-slate-900/50" : "border-indigo-500/50 bg-indigo-500/10"}`}>
+            <div className="flex items-start gap-4">
+              {hasCharacters ? <CheckCircle2 className="text-green-500 mt-1" /> : <Circle className="text-indigo-400 mt-1" />}
+              <div className="flex-1">
+                <h3 className={`text-xl font-bold ${hasCharacters ? "text-slate-300 line-through opacity-70" : "text-white"}`}>Step 1: Create your first Character</h3>
+                {!hasCharacters && (
+                  <>
+                    <p className="mt-2 text-slate-400">Who will you be in this universe?</p>
+                    <Link href="/characters/new" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                      <UserPlus size={18} /> Create Character
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* STEP 2 */}
+          <div className={`rounded-xl border p-6 transition-all ${!hasCharacters ? "border-slate-800 bg-slate-900 opacity-50 pointer-events-none" : hasWorlds ? "border-slate-800 bg-slate-900/50" : "border-indigo-500/50 bg-indigo-500/10"}`}>
+            <div className="flex items-start gap-4">
+               {hasWorlds ? <CheckCircle2 className="text-green-500 mt-1" /> : <Circle className="text-indigo-400 mt-1" />}
+               <div className="flex-1">
+                <h3 className={`text-xl font-bold ${hasWorlds ? "text-slate-300 line-through opacity-70" : "text-white"}`}>Step 2: Import Telegram Chat OR Create World</h3>
+                {!hasWorlds && hasCharacters && (
+                  <>
+                    <p className="mt-2 text-slate-400">Bring your existing story over, or start a brand new one.</p>
+                    <div className="mt-4 flex flex-col sm:flex-row gap-4">
+                      <Link href="/import" className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                        <UploadCloud size={18} /> Import Telegram Chat
+                      </Link>
+                      <Link href="/worlds/new" className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-700">
+                        <Globe size={18} /> Create New World
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* STEP 3 */}
+          <div className={`rounded-xl border p-6 transition-all ${!hasWorlds ? "border-slate-800 bg-slate-900 opacity-50 pointer-events-none" : "border-indigo-500/50 bg-indigo-500/10"}`}>
+             <div className="flex items-start gap-4">
+               <Circle className="text-indigo-400 mt-1" />
+               <div className="flex-1">
+                <h3 className="text-xl font-bold text-white">Step 3: Invite your RP Partner</h3>
+                {hasWorlds && (
+                  <p className="mt-2 text-slate-400">Head over to your world and share the invite code with your partner!</p>
+                )}
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
+    )
+  }
 
-      {worlds.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-12 text-center">
-          <h3 className="text-lg font-medium text-white">No worlds yet</h3>
-          <p className="mt-2 text-slate-400">Create a new world or join an existing one to start roleplaying.</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  // POPULATED VIEW
+  return (
+    <div className="mx-auto max-w-6xl p-6 lg:p-10">
+      <div className="mb-12">
+        <h1 className="text-4xl font-bold text-white tracking-tight">Welcome back.</h1>
+        <p className="text-lg text-slate-400 mt-2">Pick up where you left off or start something new.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        <Link href="/characters/new" className="group relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition-all hover:border-indigo-500 hover:bg-slate-800">
+          <div className="mb-4 rounded-full bg-slate-800 p-4 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+            <UserPlus size={32} />
+          </div>
+          <h3 className="text-lg font-semibold text-white">Create Character</h3>
+        </Link>
+
+        <Link href="/import" className="group relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition-all hover:border-indigo-500 hover:bg-slate-800">
+          <div className="mb-4 rounded-full bg-slate-800 p-4 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+            <UploadCloud size={32} />
+          </div>
+          <h3 className="text-lg font-semibold text-white">Import Telegram</h3>
+        </Link>
+
+        <Link href="/worlds/new" className="group relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition-all hover:border-indigo-500 hover:bg-slate-800">
+          <div className="mb-4 rounded-full bg-slate-800 p-4 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+            <Globe size={32} />
+          </div>
+          <h3 className="text-lg font-semibold text-white">Create World</h3>
+        </Link>
+
+        <Link href="/worlds/join" className="group relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition-all hover:border-indigo-500 hover:bg-slate-800">
+          <div className="mb-4 rounded-full bg-slate-800 p-4 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+            <Users size={32} />
+          </div>
+          <h3 className="text-lg font-semibold text-white">Join World</h3>
+        </Link>
+      </div>
+
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-white">Your Worlds</h2>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {worlds.map((world) => (
             <Link
               key={world.id}
               href={`/worlds/${world.id}`}
-              className="block rounded-xl border border-slate-800 bg-slate-900 p-6 transition hover:border-indigo-500/50 hover:bg-slate-800/50"
+              className="group block rounded-2xl border border-slate-800 bg-slate-900 p-6 transition-all hover:border-indigo-500/50 hover:bg-slate-800/50"
             >
-              <h3 className="text-lg font-semibold text-indigo-400">{world.name}</h3>
-              <p className="mt-2 line-clamp-2 text-sm text-slate-400">
+              <h3 className="text-xl font-semibold text-white group-hover:text-indigo-400">{world.name}</h3>
+              <p className="mt-3 line-clamp-2 text-sm text-slate-400 leading-relaxed">
                 {world.description || "No description provided."}
               </p>
-              <div className="mt-4 text-xs text-slate-500">
-                Created {world.createdAt.toLocaleDateString()}
+              <div className="mt-6 flex items-center justify-between text-sm text-slate-500 border-t border-slate-800/50 pt-4">
+                <span>Code: <span className="font-mono text-indigo-300">{world.inviteCode}</span></span>
+                <span>{new Date(world.createdAt).toLocaleDateString()}</span>
               </div>
             </Link>
           ))}
         </div>
-      )}
+      </div>
     </div>
   )
 }

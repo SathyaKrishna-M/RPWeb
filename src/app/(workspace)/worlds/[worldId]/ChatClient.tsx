@@ -103,14 +103,14 @@ export default function ChatClient({
   const renderContent = (msg: ChatMessage) => {
     switch (msg.format) {
       case "DIALOGUE":
-        return <p className="text-white italic text-lg leading-relaxed">"{msg.content}"</p>
+        return <p className="text-white italic text-lg leading-relaxed whitespace-pre-wrap">"{msg.content}"</p>
       case "ACTION":
-        return <p className="text-slate-300 italic">*{msg.content}*</p>
+        return <p className="text-slate-300 italic whitespace-pre-wrap">*{msg.content}*</p>
       case "THOUGHT":
-        return <p className="text-indigo-200 font-medium">**{msg.content}**</p>
+        return <p className="text-indigo-200 font-medium whitespace-pre-wrap">**{msg.content}**</p>
       case "NARRATION":
       default:
-        return <p className="text-slate-200 leading-relaxed">{msg.content}</p>
+        return <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
     }
   }
 

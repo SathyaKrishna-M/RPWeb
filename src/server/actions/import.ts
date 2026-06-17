@@ -12,22 +12,58 @@ type ParsedMessage = {
   timestamp: string;
 };
 
+export type NewCharacterDef = {
+  telegramName: string;
+  name: string;
+  avatarUrl: string;
+  bio: string;
+};
+
 export async function processTelegramImport(
   worldName: string,
+  worldDescription: string,
   messages: ParsedMessage[],
   characterMap: Record<string, string>, // telegramName -> characterId
+  newCharacters: NewCharacterDef[],
   myCharacterId: string
 ) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("Unauthorized")
 
+  // 1. Create New Characters
+  const createdCharIds: Record<string, string> = {}
+  for (const newChar of newCharacters) {
+    const char = await prisma.character.create({
+      data: {
+        userId: session.user.id,
+        name: newChar.name,
+        avatarUrl: newChar.avatarUrl || null,
+        bio: newChar.bio || null,
+      }
+    })
+    createdCharIds[newChar.telegramName] = char.id
+  }
+
+  // Update character map with newly created character IDs
+  const finalCharacterMap = { ...characterMap }
+  for (const [telegramName, mappedVal] of Object.entries(finalCharacterMap)) {
+    if (mappedVal === "CREATE_NEW" && createdCharIds[telegramName]) {
+      finalCharacterMap[telegramName] = createdCharIds[telegramName]
+      
+      // If the user selected to play as this newly created character
+      if (myCharacterId === `NEW_${telegramName}`) {
+        myCharacterId = createdCharIds[telegramName]
+      }
+    }
+  }
+
   const inviteCode = randomBytes(3).toString("hex").toUpperCase()
 
-  // Create the world
+  // 2. Create the world
   const world = await prisma.world.create({
     data: {
       name: worldName,
-      description: "Imported from Telegram",
+      description: worldDescription || "Imported from Telegram",
       inviteCode,
       ownerId: session.user.id,
       members: {
@@ -40,7 +76,7 @@ export async function processTelegramImport(
     }
   })
 
-  // Create the import record
+  // 3. Create the import record
   await prisma.telegramImport.create({
     data: {
       worldId: world.id,
@@ -49,13 +85,11 @@ export async function processTelegramImport(
     }
   })
 
-  // Bulk insert messages
-  // We will map sender to characterId. If a sender is not mapped, we might skip or map to a default.
-  // Wait, if it's not mapped, we skip it (or maybe it shouldn't happen if UI enforces it).
+  // 4. Bulk insert messages
   const messageData = messages
     .map(msg => {
-      const charId = characterMap[msg.sender];
-      if (!charId) return null;
+      const charId = finalCharacterMap[msg.sender];
+      if (!charId || charId === "SKIP") return null;
 
       return {
         worldId: world.id,
@@ -69,8 +103,6 @@ export async function processTelegramImport(
     .filter(Boolean) as any[];
 
   if (messageData.length > 0) {
-    // Prisma bulk insert (sqlite limits variables so we might chunk, but let's try direct first)
-    // Actually, chunking is safer.
     const chunkSize = 1000;
     for (let i = 0; i < messageData.length; i += chunkSize) {
       const chunk = messageData.slice(i, i + chunkSize);
@@ -81,5 +113,5 @@ export async function processTelegramImport(
   }
 
   revalidatePath("/dashboard")
-  redirect(`/worlds/${world.id}`)
+  return world.id // Return world ID instead of redirecting so client can handle it
 }
