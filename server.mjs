@@ -3,7 +3,7 @@ import next from 'next';
 import { Server } from 'socket.io';
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
+const hostname = process.env.HOSTNAME || '0.0.0.0';
 const port = process.env.PORT || 3000;
 
 // Initialize Next.js
@@ -13,6 +13,13 @@ const handler = app.getRequestHandler();
 app.prepare().then(() => {
   const httpServer = createServer(async (req, res) => {
     try {
+      // Render Health Check
+      if (req.url === '/api/health') {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('OK');
+        return;
+      }
+
       // Intercept internal emit calls from Server Actions
       if (req.method === 'POST' && req.url === '/api/socket/emit') {
         let body = '';

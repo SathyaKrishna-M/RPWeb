@@ -1,7 +1,7 @@
 export async function emitToSocket(room: string, event: string, payload: any) {
   try {
     const port = process.env.PORT || 3000;
-    const url = `http://localhost:${port}/api/socket/emit`;
+    const url = `http://127.0.0.1:${port}/api/socket/emit`;
     
     await fetch(url, {
       method: "POST",
