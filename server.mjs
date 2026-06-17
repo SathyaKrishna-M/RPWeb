@@ -1,10 +1,41 @@
 import { createServer } from 'node:http';
 import next from 'next';
 import { Server } from 'socket.io';
+import fs from 'node:fs';
+import path from 'node:path';
+import cron from 'node-cron';
+import { PrismaClient } from '@prisma/client';
+import { spawn } from 'node:child_process';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
 const port = process.env.PORT || 3000;
+
+// ==============================
+// Safety Checks & Startup Hooks
+// ==============================
+const BACKUP_DIR = path.join(process.cwd(), 'backups');
+if (!fs.existsSync(BACKUP_DIR)) {
+  console.warn("⚠️ Backups directory is missing. Creating one now.");
+  fs.mkdirSync(BACKUP_DIR);
+}
+
+const prisma = new PrismaClient();
+prisma.$connect()
+  .then(() => console.log("✅ Database connection verified."))
+  .catch((e) => {
+    console.error("❌ Database connection failed. Please check if PostgreSQL is running.");
+    console.error("If using Docker, run: docker-compose up -d");
+  });
+
+// Schedule Automatic Daily Backups (3:00 AM)
+cron.schedule('0 3 * * *', () => {
+  console.log("🕒 Running scheduled daily backup...");
+  const child = spawn('node', ['scripts/backup.mjs'], { stdio: 'inherit' });
+  child.on('close', (code) => {
+    if (code !== 0) console.error("❌ Scheduled backup failed.");
+  });
+});
 
 // Initialize Next.js
 const app = next({ dev, hostname, port });
