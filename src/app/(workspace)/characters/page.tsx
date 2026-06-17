@@ -66,9 +66,17 @@ export default async function CharactersPage() {
                   </div>
                 </div>
               </div>
-              <p className="line-clamp-3 text-sm text-slate-400 leading-relaxed">
+              <p className="line-clamp-3 text-sm text-slate-400 leading-relaxed mb-4">
                 {char.bio || "No bio provided."}
               </p>
+              <div className="pt-4 border-t border-slate-800 flex justify-end">
+                <Link
+                  href={`/characters/${char.id}/edit`}
+                  className="text-sm font-medium text-indigo-400 hover:text-indigo-300"
+                >
+                  Edit Character
+                </Link>
+              </div>
             </div>
           ))}
         </div>

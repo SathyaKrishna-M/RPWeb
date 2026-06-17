@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { io, Socket } from "socket.io-client"
 import { createMessage } from "@/server/actions/messages"
-import { Send, User as UserIcon } from "lucide-react"
+import { Send, User as UserIcon, ChevronDown } from "lucide-react"
 
 type ChatMessage = {
   id: string
@@ -17,19 +17,51 @@ type ChatMessage = {
   }
 }
 
+type CharacterDef = {
+  id: string
+  name: string
+  avatarUrl: string | null
+}
+
+function getCharacterColor(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 35%, 12%)`; // Dark pastel background
+}
+
+function getCharacterBorder(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 50%, 25%)`; // Slightly brighter for border
+}
+
 export default function ChatClient({
   initialMessages,
   worldId,
-  myCharacter
+  myCharacter,
+  allMyCharacters
 }: {
   initialMessages: ChatMessage[]
   worldId: string
-  myCharacter: any
+  myCharacter: CharacterDef
+  allMyCharacters?: CharacterDef[]
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [content, setContent] = useState("")
   const [format, setFormat] = useState("NARRATION")
   const [socket, setSocket] = useState<Socket | null>(null)
+  
+  const availableCharacters = allMyCharacters || [myCharacter]
+  const [activeCharacterId, setActiveCharacterId] = useState(myCharacter.id)
+  
+  const activeCharacter = availableCharacters.find(c => c.id === activeCharacterId) || myCharacter
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -61,6 +93,7 @@ export default function ChatClient({
 
     const newMsgContent = content;
     const newMsgFormat = format;
+    const sendingCharacter = activeCharacter;
     setContent("")
     
     // Create optimistic message
@@ -71,15 +104,18 @@ export default function ChatClient({
       format: newMsgFormat,
       timestamp: new Date().toISOString(),
       character: {
-        id: myCharacter.id,
-        name: myCharacter.name,
-        avatarUrl: myCharacter.avatarUrl
+        id: sendingCharacter.id,
+        name: sendingCharacter.name,
+        avatarUrl: sendingCharacter.avatarUrl
       }
     }
     setMessages(prev => [...prev, optimisticMessage])
 
     try {
-      const savedMsg = await createMessage(worldId, newMsgContent, newMsgFormat)
+      // Note: createMessage currently uses the session user's character. 
+      // We will need to update createMessage to accept a characterId if they own it.
+      // For now we pass characterId
+      const savedMsg = await createMessage(worldId, newMsgContent, newMsgFormat, sendingCharacter.id)
       
       const formattedMsg: ChatMessage = {
         ...savedMsg,
@@ -116,12 +152,19 @@ export default function ChatClient({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-950">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950">
         {messages.map((msg, idx) => {
           const showHeader = idx === 0 || messages[idx - 1].character.id !== msg.character.id
           
           return (
-            <div key={msg.id} className={`flex gap-4 ${!showHeader ? 'mt-1' : 'mt-6'}`}>
+            <div 
+              key={msg.id} 
+              className={`flex gap-4 p-4 rounded-2xl border ${!showHeader ? 'mt-1' : 'mt-4'}`}
+              style={{ 
+                backgroundColor: getCharacterColor(msg.character.id),
+                borderColor: getCharacterBorder(msg.character.id)
+              }}
+            >
               <div className="flex-shrink-0 w-10">
                 {showHeader ? (
                   msg.character.avatarUrl ? (
@@ -135,9 +178,9 @@ export default function ChatClient({
               </div>
               <div className="flex-1 overflow-hidden">
                 {showHeader && (
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="font-semibold text-indigo-400">{msg.character.name}</span>
-                    <span className="text-xs text-slate-500">
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="font-bold text-slate-100">{msg.character.name}</span>
+                    <span className="text-xs font-medium text-slate-400">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -152,21 +195,44 @@ export default function ChatClient({
 
       <div className="bg-slate-900 border-t border-slate-800 p-4">
         <div className="mx-auto max-w-4xl">
-          <div className="mb-2 flex gap-2">
-            {["DIALOGUE", "ACTION", "THOUGHT", "NARRATION"].map(f => (
-              <button
-                key={f}
-                onClick={() => setFormat(f)}
-                className={`px-3 py-1 text-xs font-medium rounded-full border transition ${
-                  format === f 
-                    ? "bg-indigo-600 border-indigo-500 text-white" 
-                    : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
+            {/* Format Selector */}
+            <div className="flex gap-2">
+              {["DIALOGUE", "ACTION", "THOUGHT", "NARRATION"].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFormat(f)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full border transition ${
+                    format === f 
+                      ? "bg-indigo-600 border-indigo-500 text-white" 
+                      : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            {/* Character Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-400">Posting as:</span>
+              <div className="relative">
+                <select
+                  value={activeCharacterId}
+                  onChange={e => setActiveCharacterId(e.target.value)}
+                  className="appearance-none bg-slate-800 border border-slate-700 text-white text-sm font-medium rounded-full pl-3 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  {availableCharacters.map(char => (
+                    <option key={char.id} value={char.id}>
+                      {char.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
           </div>
+          
           <div className="flex items-end gap-2">
             <textarea
               value={content}
@@ -177,13 +243,13 @@ export default function ChatClient({
                   handleSend()
                 }
               }}
-              placeholder={`Write as ${myCharacter.name}... (Shift+Enter for new line)`}
-              className="w-full max-h-32 min-h-[3rem] resize-y rounded-lg border border-slate-700 bg-slate-800 p-3 text-sm text-white placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              placeholder={`Write as ${activeCharacter.name}... (Shift+Enter for new line)`}
+              className="w-full max-h-32 min-h-[3rem] resize-y rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <button
               onClick={handleSend}
               disabled={!content.trim()}
-              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50"
+              className="flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg transition hover:bg-indigo-500 disabled:opacity-50"
             >
               <Send size={18} />
             </button>

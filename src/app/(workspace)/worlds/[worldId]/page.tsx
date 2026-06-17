@@ -65,6 +65,11 @@ export default async function WorldPage({
 
   const importDate = member.world.imports[0]?.createdAt || null
 
+  const allMyCharacters = await prisma.character.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" }
+  })
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] md:h-screen flex-col">
       <WorldHeader world={member.world} importDate={importDate} />
@@ -74,6 +79,7 @@ export default async function WorldPage({
           initialMessages={serializedMessages} 
           worldId={worldId} 
           myCharacter={member.character} 
+          allMyCharacters={allMyCharacters}
         />
       </div>
     </div>
