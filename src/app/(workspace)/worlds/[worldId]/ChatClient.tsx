@@ -54,7 +54,6 @@ export default function ChatClient({
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [content, setContent] = useState("")
-  const [format, setFormat] = useState("NARRATION")
   const [socket, setSocket] = useState<Socket | null>(null)
   
   const availableCharacters = allMyCharacters || [myCharacter]
@@ -92,7 +91,7 @@ export default function ChatClient({
     if (!content.trim()) return
 
     const newMsgContent = content;
-    const newMsgFormat = format;
+    const newMsgFormat = "MIXED";
     const sendingCharacter = activeCharacter;
     setContent("")
     
@@ -137,17 +136,50 @@ export default function ChatClient({
   }
 
   const renderContent = (msg: ChatMessage) => {
-    switch (msg.format) {
-      case "DIALOGUE":
-        return <p className="text-white italic text-lg leading-relaxed whitespace-pre-wrap">"{msg.content}"</p>
-      case "ACTION":
-        return <p className="text-slate-300 italic whitespace-pre-wrap">*{msg.content}*</p>
-      case "THOUGHT":
-        return <p className="text-indigo-200 font-medium whitespace-pre-wrap">**{msg.content}**</p>
-      case "NARRATION":
-      default:
-        return <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+    // Legacy support for non-mixed formats
+    if (msg.format === "DIALOGUE") {
+      return <p className="text-white italic text-lg leading-relaxed whitespace-pre-wrap">"{msg.content}"</p>
+    } else if (msg.format === "ACTION") {
+      return <p className="text-slate-300 italic whitespace-pre-wrap">*{msg.content}*</p>
+    } else if (msg.format === "THOUGHT") {
+      return <p className="text-indigo-200 font-medium whitespace-pre-wrap">**{msg.content}**</p>
+    } else if (msg.format === "NARRATION" && !msg.content.match(/(".*?"|\*\*.*?\*\*|\*.*?\*)/)) {
+      return <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
     }
+
+    // Mixed Format Parser
+    const regex = /("[\s\S]*?"|\*\*[\s\S]*?\*\*|\*[\s\S]*?\*)/g;
+    const parts = msg.content.split(regex);
+    
+    return (
+      <p className="leading-relaxed whitespace-pre-wrap">
+        {parts.map((part, i) => {
+          if (!part) return null;
+          if (part.startsWith('"') && part.endsWith('"') && part.length >= 2) {
+            return <span key={i} className="text-white italic text-[1.05rem]">{part}</span>;
+          }
+          if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+            return <span key={i} className="text-indigo-300 font-medium">{part}</span>;
+          }
+          if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+            return <span key={i} className="text-slate-300 italic">{part}</span>;
+          }
+          return <span key={i} className="text-slate-200">{part}</span>;
+        })}
+      </p>
+    );
+  }
+
+  const getTags = (msg: ChatMessage) => {
+    if (msg.format !== "MIXED" && msg.format !== "NARRATION") return [msg.format];
+    
+    // For mixed or legacy narration that actually has markdown, detect what's inside
+    const tags = [];
+    if (msg.content.includes('"')) tags.push("DIALOGUE");
+    if (msg.content.includes('**')) tags.push("THOUGHT");
+    else if (msg.content.match(/\*[^*]+\*/)) tags.push("ACTION");
+    
+    return tags;
   }
 
   return (
@@ -155,6 +187,7 @@ export default function ChatClient({
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950">
         {messages.map((msg, idx) => {
           const showHeader = idx === 0 || messages[idx - 1].character.id !== msg.character.id
+          const tags = getTags(msg);
           
           return (
             <div 
@@ -183,6 +216,15 @@ export default function ChatClient({
                     <span className="text-xs font-medium text-slate-400">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
+                    {tags.length > 0 && (
+                      <div className="flex gap-1 ml-1">
+                        {tags.map(t => (
+                          <span key={t} className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-sm bg-slate-900 text-slate-400 border border-slate-700/50">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div>{renderContent(msg)}</div>
@@ -196,21 +238,12 @@ export default function ChatClient({
       <div className="bg-slate-900 border-t border-slate-800 p-4">
         <div className="mx-auto max-w-4xl">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
-            {/* Format Selector */}
-            <div className="flex gap-2">
-              {["DIALOGUE", "ACTION", "THOUGHT", "NARRATION"].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFormat(f)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-full border transition ${
-                    format === f 
-                      ? "bg-indigo-600 border-indigo-500 text-white" 
-                      : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white"
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
+            {/* Format Hint */}
+            <div className="flex gap-4 text-xs font-medium text-slate-400 bg-slate-800/50 px-4 py-2 rounded-full border border-slate-700">
+              <span><span className="text-white italic">"dialogue"</span></span>
+              <span><span className="text-slate-300 italic">*action*</span></span>
+              <span><span className="text-indigo-300 font-medium">**thought**</span></span>
+              <span>narration</span>
             </div>
 
             {/* Character Selector */}
