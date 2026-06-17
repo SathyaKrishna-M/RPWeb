@@ -1,0 +1,1125 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum WorldVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+  PASSWORD_PROTECTED
+}
+
+enum WorldStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum WorldMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  WRITER
+  CONTRIBUTOR
+  READER
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  DECLINED
+  LEFT
+  REMOVED
+}
+
+enum ContentVisibility {
+  PRIVATE
+  WORLD
+  PUBLIC
+}
+
+enum CharacterStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum SceneStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum PostingOrderMode {
+  FREEFORM
+  TURN_ORDER
+}
+
+enum SceneParticipantStatus {
+  INVITED
+  ACTIVE
+  LEFT
+  REMOVED
+}
+
+enum ScenePostType {
+  IN_CHARACTER
+  OUT_OF_CHARACTER
+  NARRATION
+  SYSTEM
+}
+
+enum StoryArcStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum RelationshipType {
+  FRIEND
+  RIVAL
+  FAMILY
+  ENEMY
+  LOVER
+  ALLY
+  OTHER
+}
+
+enum RelationshipStatus {
+  PROPOSED
+  ACTIVE
+  ENDED
+  HIDDEN
+}
+
+enum LoreCategory {
+  LOCATION
+  CULTURE
+  HISTORY
+  RULE
+  ORGANIZATION
+  ITEM
+  CHARACTER
+  EVENT
+  OTHER
+}
+
+enum CanonicalStatus {
+  DRAFT
+  CANON
+  NON_CANON
+  RETCONNED
+}
+
+enum TimelineEventType {
+  WORLD
+  CHARACTER
+  SCENE
+  LORE
+  OTHER
+}
+
+enum JournalVisibility {
+  PRIVATE
+  WORLD
+  PUBLIC
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LocationType {
+  REGION
+  CITY
+  LANDMARK
+  BUILDING
+  ROOM
+  OTHER
+}
+
+enum MapStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum TargetEntityType {
+  WORLD
+  CHARACTER
+  SCENE
+  SCENE_POST
+  STORY_ARC
+  LORE_ENTRY
+  TIMELINE_EVENT
+  JOURNAL_ENTRY
+  RELATIONSHIP
+  WORLD_LOCATION
+}
+
+enum TagType {
+  GENERAL
+  CONTENT_WARNING
+  GENRE
+  LOCATION
+  THEME
+}
+
+enum NotificationType {
+  INVITATION
+  MENTION
+  SCENE_POST
+  TURN_READY
+  RELATIONSHIP_UPDATE
+  WORLD_UPDATE
+  COMMENT
+  MODERATION
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE
+  EXPLICIT_CONTENT
+  VIOLENCE
+  OTHER
+}
+
+enum MemorySourceType {
+  MANUAL
+  SCENE_POST
+  LORE_ENTRY
+  JOURNAL_ENTRY
+  SUMMARY
+}
+
+enum GeneratedContentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id                String     @id @default(uuid()) @db.Uuid
+  email             String     @unique
+  username          String     @unique
+  passwordHash      String     @map("password_hash")
+  status            UserStatus @default(ACTIVE)
+  lastLoginAt       DateTime?  @map("last_login_at")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  deletedAt         DateTime?  @map("deleted_at")
+  activeCharacterId String?    @map("active_character_id") @db.Uuid
+
+  profile             Profile?
+  sessions            UserSession[]
+  ownedWorlds         World[]                 @relation("WorldOwner")
+  worldMemberships    WorldMembership[]
+  sentInvitations     WorldInvitation[]       @relation("InvitationSender")
+  receivedInvitations WorldInvitation[]       @relation("InvitationReceiver")
+  characters          Character[]             @relation("CharacterOwner")
+  createdStoryArcs    StoryArc[]              @relation("StoryArcCreator")
+  createdScenes       Scene[]                 @relation("SceneCreator")
+  sceneParticipants   SceneParticipant[]
+  scenePosts          ScenePost[]             @relation("ScenePostAuthor")
+  createdLoreEntries  LoreEntry[]             @relation("LoreCreator")
+  createdEvents       TimelineEvent[]         @relation("TimelineCreator")
+  createdJournals     CharacterJournalEntry[] @relation("JournalCreator")
+  relationshipUpdates Relationship[]          @relation("RelationshipUpdater")
+  createdLocations    WorldLocation[]         @relation("LocationCreator")
+  uploadedAttachments Attachment[]
+  comments            Comment[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]              @relation("AuditActor")
+  reportsFiled        ContentReport[]         @relation("ReportReporter")
+  reportsResolved     ContentReport[]         @relation("ReportResolver")
+  memoriesCreated     CharacterMemory[]       @relation("MemoryCreator")
+  requestedSummaries  AiSummary[]             @relation("SummaryRequester")
+  generatedArtwork    GeneratedArtwork[]      @relation("ArtworkCreator")
+  blockedUsers        UserBlock[]             @relation("UserBlocks")
+  blockedByUsers      UserBlock[]             @relation("UserBlockedBy")
+  followingUsers      UserFollow[]            @relation("UserFollowing")
+  followedByUsers     UserFollow[]            @relation("UserFollowers")
+  followedWorlds      WorldFollow[]
+  telegramImports     TelegramImport[]
+  createdInviteLinks  WorldInviteLink[]       @relation("InviteLinkCreator")
+  worldJoinRequests   WorldJoinRequest[]
+  whitelistedInWorlds WorldWhitelist[]        @relation("WhitelistedUser")
+  whitelistsAdded     WorldWhitelist[]        @relation("WhitelistAdder")
+
+  @@index([status])
+  @@map("users")
+}
+
+model Profile {
+  userId             String   @id @map("user_id") @db.Uuid
+  displayName        String   @map("display_name")
+  bio                String?  @db.Text
+  avatarUrl          String?  @map("avatar_url")
+  timezone           String?
+  contentPreferences Json     @default("{}") @map("content_preferences")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([displayName])
+  @@map("profiles")
+}
+
+model UserSession {
+  id               String        @id @default(uuid()) @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  refreshTokenHash String        @unique @map("refresh_token_hash")
+  userAgent        String?       @map("user_agent")
+  ipAddress        String?       @map("ip_address")
+  status           SessionStatus @default(ACTIVE)
+  expiresAt        DateTime      @map("expires_at")
+  revokedAt        DateTime?     @map("revoked_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+model World {
+  id             String          @id @default(uuid()) @db.Uuid
+  ownerUserId    String          @map("owner_user_id") @db.Uuid
+  name           String
+  slug           String
+  summary        String?         @db.Text
+  description    String?         @db.Text
+  rules          String?         @db.Text
+  bannerUrl      String?         @map("banner_url")
+  iconUrl        String?         @map("icon_url")
+  genre          String?
+  tagsArray      String[]        @default([]) @map("tags_array")
+  memberCount    Int             @default(1) @map("member_count")
+  sceneCount     Int             @default(0) @map("scene_count")
+  characterCount Int             @default(0) @map("character_count")
+  visibility     WorldVisibility @default(PRIVATE)
+  passwordHash   String?         @map("password_hash")
+  status         WorldStatus     @default(ACTIVE)
+  settingsJson   Json            @default("{}") @map("settings_json")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
+
+  owner           User                    @relation("WorldOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  memberships     WorldMembership[]
+  invitations     WorldInvitation[]
+  followers       WorldFollow[]
+  characters      Character[]
+  storyArcs       StoryArc[]
+  scenes          Scene[]
+  journalEntries  CharacterJournalEntry[]
+  loreEntries     LoreEntry[]
+  timelineEvents  TimelineEvent[]
+  relationships   Relationship[]
+  locations       WorldLocation[]
+  maps            WorldMap[]
+  tags            Tag[]
+  attachments     Attachment[]
+  comments        Comment[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  reports         ContentReport[]
+  memories        CharacterMemory[]
+  summaries       AiSummary[]
+  artwork         GeneratedArtwork[]
+  telegramImports TelegramImport[]
+  inviteLinks     WorldInviteLink[]
+  joinRequests    WorldJoinRequest[]
+  whitelists      WorldWhitelist[]
+
+  @@unique([ownerUserId, slug])
+  @@index([ownerUserId])
+  @@index([visibility])
+  @@index([status])
+  @@map("worlds")
+}
+
+model WorldMembership {
+  id         String           @id @default(uuid()) @db.Uuid
+  worldId    String           @map("world_id") @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  role       WorldMemberRole  @default(READER)
+  status     MembershipStatus @default(ACTIVE)
+  joinedAt   DateTime?        @map("joined_at")
+  lastSeenAt DateTime?        @map("last_seen_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  world World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([worldId, userId])
+  @@index([userId])
+  @@index([worldId, role])
+  @@index([worldId, status])
+  @@map("world_memberships")
+}
+
+model WorldInvitation {
+  id              String           @id @default(uuid()) @db.Uuid
+  worldId         String           @map("world_id") @db.Uuid
+  invitedByUserId String           @map("invited_by_user_id") @db.Uuid
+  invitedUserId   String?          @map("invited_user_id") @db.Uuid
+  invitedEmail    String?          @map("invited_email")
+  role            WorldMemberRole  @default(READER)
+  tokenHash       String           @unique @map("token_hash")
+  status          InvitationStatus @default(PENDING)
+  expiresAt       DateTime         @map("expires_at")
+  acceptedAt      DateTime?        @map("accepted_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  world         World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  invitedByUser User  @relation("InvitationSender", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  invitedUser   User? @relation("InvitationReceiver", fields: [invitedUserId], references: [id], onDelete: SetNull)
+
+  @@index([worldId, status])
+  @@index([invitedUserId, status])
+  @@index([invitedEmail, status])
+  @@map("world_invitations")
+}
+
+model WorldFollow {
+  userId    String   @map("user_id") @db.Uuid
+  worldId   String   @map("world_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  world World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@id([userId, worldId])
+  @@index([worldId])
+  @@map("world_follows")
+}
+
+model UserFollow {
+  followerUserId  String   @map("follower_user_id") @db.Uuid
+  followingUserId String   @map("following_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("UserFollowing", fields: [followerUserId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingUserId], references: [id], onDelete: Cascade)
+
+  @@id([followerUserId, followingUserId])
+  @@index([followingUserId])
+  @@map("user_follows")
+}
+
+model UserBlock {
+  blockerUserId String   @map("blocker_user_id") @db.Uuid
+  blockedUserId String   @map("blocked_user_id") @db.Uuid
+  reason        String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("UserBlocks", fields: [blockerUserId], references: [id], onDelete: Cascade)
+  blocked User @relation("UserBlockedBy", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@id([blockerUserId, blockedUserId])
+  @@index([blockedUserId])
+  @@map("user_blocks")
+}
+
+model Character {
+  id           String            @id @default(uuid()) @db.Uuid
+  worldId      String?           @map("world_id") @db.Uuid
+  ownerUserId  String            @map("owner_user_id") @db.Uuid
+  name         String
+  slug         String
+  title        String?
+  age          String?
+  avatarUrl    String?           @map("avatar_url")
+  appearance   String?           @db.Text
+  personality  String?           @db.Text
+  biography    String?           @db.Text
+  summary      String?           @db.Text
+  traitsJson   Json              @default("{}") @map("traits_json")
+  status       CharacterStatus   @default(DRAFT)
+  visibility   ContentVisibility @default(WORLD)
+  isPublished  Boolean           @default(false) @map("is_published")
+  isArchived   Boolean           @default(false) @map("is_archived")
+  lastActiveAt DateTime?         @map("last_active_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  deletedAt    DateTime?         @map("deleted_at")
+
+  world                      World?                      @relation(fields: [worldId], references: [id], onDelete: SetNull)
+  owner                      User                        @relation("CharacterOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  sceneParticipants          SceneParticipant[]
+  scenePosts                 ScenePost[]
+  journals                   CharacterJournalEntry[]
+  relationshipsAsA           Relationship[]              @relation("RelationshipCharacterA")
+  relationshipsAsB           Relationship[]              @relation("RelationshipCharacterB")
+  eventCharacters            EventCharacter[]
+  memories                   CharacterMemory[]
+  artwork                    GeneratedArtwork[]
+  telegramImportParticipants TelegramImportParticipant[]
+
+  @@unique([worldId, slug])
+  @@index([ownerUserId])
+  @@index([worldId, status])
+  @@index([worldId, visibility])
+  @@map("characters")
+}
+
+model CharacterJournalEntry {
+  id              String            @id @default(uuid()) @db.Uuid
+  worldId         String            @map("world_id") @db.Uuid
+  characterId     String            @map("character_id") @db.Uuid
+  createdByUserId String            @map("created_by_user_id") @db.Uuid
+  title           String
+  body            String            @db.Text
+  visibility      JournalVisibility @default(PRIVATE)
+  occurredAt      DateTime?         @map("occurred_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  deletedAt       DateTime?         @map("deleted_at")
+
+  world         World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdByUser User      @relation("JournalCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([worldId, createdAt])
+  @@index([characterId, occurredAt])
+  @@index([createdByUserId])
+  @@map("character_journal_entries")
+}
+
+model StoryArc {
+  id              String         @id @default(uuid()) @db.Uuid
+  worldId         String         @map("world_id") @db.Uuid
+  createdByUserId String         @map("created_by_user_id") @db.Uuid
+  title           String
+  summary         String?        @db.Text
+  status          StoryArcStatus @default(PLANNED)
+  startsAt        DateTime?      @map("starts_at")
+  endsAt          DateTime?      @map("ends_at")
+  sortOrder       Int            @default(0) @map("sort_order")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  deletedAt       DateTime?      @map("deleted_at")
+
+  world         World   @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdByUser User    @relation("StoryArcCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  scenes        Scene[]
+
+  @@index([worldId, status])
+  @@index([worldId, sortOrder])
+  @@map("story_arcs")
+}
+
+model Scene {
+  id               String            @id @default(uuid()) @db.Uuid
+  worldId          String            @map("world_id") @db.Uuid
+  arcId            String?           @map("arc_id") @db.Uuid
+  locationId       String?           @map("location_id") @db.Uuid
+  createdByUserId  String            @map("created_by_user_id") @db.Uuid
+  title            String
+  summary          String?           @db.Text
+  locationText     String?           @map("location_text")
+  status           SceneStatus       @default(DRAFT)
+  visibility       ContentVisibility @default(WORLD)
+  postingOrderMode PostingOrderMode  @default(FREEFORM) @map("posting_order_mode")
+  startedAt        DateTime?         @map("started_at")
+  endedAt          DateTime?         @map("ended_at")
+  lastActivityAt   DateTime?         @map("last_activity_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  deletedAt        DateTime?         @map("deleted_at")
+
+  world          World              @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  arc            StoryArc?          @relation(fields: [arcId], references: [id], onDelete: SetNull)
+  location       WorldLocation?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  createdByUser  User               @relation("SceneCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  participants   SceneParticipant[]
+  posts          ScenePost[]
+  timelineEvents TimelineEvent[]
+  artwork        GeneratedArtwork[]
+  importedFrom   TelegramImport[]   @relation("ImportedScene")
+
+  @@index([worldId, lastActivityAt])
+  @@index([worldId, status])
+  @@index([arcId])
+  @@index([locationId])
+  @@index([visibility])
+  @@map("scenes")
+}
+
+model SceneParticipant {
+  id                String                 @id @default(uuid()) @db.Uuid
+  sceneId           String                 @map("scene_id") @db.Uuid
+  characterId       String                 @map("character_id") @db.Uuid
+  userId            String                 @map("user_id") @db.Uuid
+  participantStatus SceneParticipantStatus @default(ACTIVE) @map("participant_status")
+  turnOrder         Int?                   @map("turn_order")
+  lastPostAt        DateTime?              @map("last_post_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  scene     Scene     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sceneId, characterId])
+  @@index([sceneId, turnOrder])
+  @@index([userId])
+  @@index([characterId])
+  @@map("scene_participants")
+}
+
+model ScenePost {
+  id             String        @id @default(uuid()) @db.Uuid
+  sceneId        String        @map("scene_id") @db.Uuid
+  characterId    String?       @map("character_id") @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  body           String        @db.Text
+  postType       ScenePostType @default(IN_CHARACTER) @map("post_type")
+  sequenceNumber Int           @map("sequence_number")
+  metadataJson   Json          @default("{}") @map("metadata_json")
+  editedAt       DateTime?     @map("edited_at")
+  deletedAt      DateTime?     @map("deleted_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  scene     Scene      @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  user      User       @relation("ScenePostAuthor", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([sceneId, sequenceNumber])
+  @@index([sceneId, createdAt])
+  @@index([characterId])
+  @@index([userId])
+  @@map("scene_posts")
+}
+
+model Relationship {
+  id               String             @id @default(uuid()) @db.Uuid
+  worldId          String             @map("world_id") @db.Uuid
+  characterAId     String             @map("character_a_id") @db.Uuid
+  characterBId     String             @map("character_b_id") @db.Uuid
+  updatedByUserId  String?            @map("updated_by_user_id") @db.Uuid
+  relationshipType RelationshipType   @map("relationship_type")
+  status           RelationshipStatus @default(ACTIVE)
+  description      String?            @db.Text
+  notes            String?            @db.Text
+  metadataJson     Json               @default("{}") @map("metadata_json")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  deletedAt        DateTime?          @map("deleted_at")
+
+  world         World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  characterA    Character @relation("RelationshipCharacterA", fields: [characterAId], references: [id], onDelete: Cascade)
+  characterB    Character @relation("RelationshipCharacterB", fields: [characterBId], references: [id], onDelete: Cascade)
+  updatedByUser User?     @relation("RelationshipUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([worldId, characterAId, characterBId])
+  @@index([characterAId])
+  @@index([characterBId])
+  @@index([worldId, relationshipType])
+  @@index([worldId, status])
+  @@map("relationships")
+}
+
+model LoreEntry {
+  id              String            @id @default(uuid()) @db.Uuid
+  worldId         String            @map("world_id") @db.Uuid
+  createdByUserId String            @map("created_by_user_id") @db.Uuid
+  title           String
+  slug            String
+  category        LoreCategory      @default(OTHER)
+  body            String            @db.Text
+  visibility      ContentVisibility @default(WORLD)
+  canonicalStatus CanonicalStatus   @default(DRAFT) @map("canonical_status")
+  metadataJson    Json              @default("{}") @map("metadata_json")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  deletedAt       DateTime?         @map("deleted_at")
+
+  world          World           @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdByUser  User            @relation("LoreCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  timelineEvents TimelineEvent[]
+
+  @@unique([worldId, slug])
+  @@index([worldId, category])
+  @@index([worldId, canonicalStatus])
+  @@index([visibility])
+  @@map("lore_entries")
+}
+
+model TimelineEvent {
+  id                String            @id @default(uuid()) @db.Uuid
+  worldId           String            @map("world_id") @db.Uuid
+  createdByUserId   String            @map("created_by_user_id") @db.Uuid
+  linkedSceneId     String?           @map("linked_scene_id") @db.Uuid
+  linkedLoreEntryId String?           @map("linked_lore_entry_id") @db.Uuid
+  locationId        String?           @map("location_id") @db.Uuid
+  title             String
+  description       String?           @db.Text
+  eventDateText     String?           @map("event_date_text")
+  eventSortKey      BigInt?           @map("event_sort_key")
+  eventType         TimelineEventType @default(WORLD) @map("event_type")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  deletedAt         DateTime?         @map("deleted_at")
+
+  world           World            @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdByUser   User             @relation("TimelineCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  linkedScene     Scene?           @relation(fields: [linkedSceneId], references: [id], onDelete: SetNull)
+  linkedLoreEntry LoreEntry?       @relation(fields: [linkedLoreEntryId], references: [id], onDelete: SetNull)
+  location        WorldLocation?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  eventCharacters EventCharacter[]
+
+  @@index([worldId, eventSortKey])
+  @@index([linkedSceneId])
+  @@index([linkedLoreEntryId])
+  @@index([locationId])
+  @@map("timeline_events")
+}
+
+model EventCharacter {
+  eventId     String  @map("event_id") @db.Uuid
+  characterId String  @map("character_id") @db.Uuid
+  role        String?
+
+  event     TimelineEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  character Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, characterId])
+  @@index([characterId])
+  @@map("event_characters")
+}
+
+model WorldLocation {
+  id               String            @id @default(uuid()) @db.Uuid
+  worldId          String            @map("world_id") @db.Uuid
+  parentLocationId String?           @map("parent_location_id") @db.Uuid
+  createdByUserId  String            @map("created_by_user_id") @db.Uuid
+  name             String
+  slug             String
+  description      String?           @db.Text
+  locationType     LocationType      @default(OTHER) @map("location_type")
+  visibility       ContentVisibility @default(WORLD)
+  coordinatesJson  Json?             @map("coordinates_json")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  deletedAt        DateTime?         @map("deleted_at")
+
+  world          World            @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  parentLocation WorldLocation?   @relation("LocationHierarchy", fields: [parentLocationId], references: [id], onDelete: SetNull)
+  childLocations WorldLocation[]  @relation("LocationHierarchy")
+  createdByUser  User             @relation("LocationCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  scenes         Scene[]
+  timelineEvents TimelineEvent[]
+  mapPins        MapLocationPin[]
+
+  @@unique([worldId, slug])
+  @@index([worldId, locationType])
+  @@index([parentLocationId])
+  @@map("world_locations")
+}
+
+model WorldMap {
+  id         String    @id @default(uuid()) @db.Uuid
+  worldId    String    @map("world_id") @db.Uuid
+  name       String
+  imageUrl   String?   @map("image_url")
+  boundsJson Json?     @map("bounds_json")
+  status     MapStatus @default(DRAFT)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  world World            @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  pins  MapLocationPin[]
+
+  @@index([worldId, status])
+  @@map("world_maps")
+}
+
+model MapLocationPin {
+  id         String   @id @default(uuid()) @db.Uuid
+  mapId      String   @map("map_id") @db.Uuid
+  locationId String   @map("location_id") @db.Uuid
+  x          Float
+  y          Float
+  label      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  map      WorldMap      @relation(fields: [mapId], references: [id], onDelete: Cascade)
+  location WorldLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([mapId, locationId])
+  @@index([locationId])
+  @@map("map_location_pins")
+}
+
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  worldId   String   @map("world_id") @db.Uuid
+  name      String
+  slug      String
+  tagType   TagType  @default(GENERAL) @map("tag_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  world    World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  taggings Tagging[]
+
+  @@unique([worldId, slug])
+  @@index([worldId, tagType])
+  @@map("tags")
+}
+
+model Tagging {
+  tagId      String           @map("tag_id") @db.Uuid
+  entityType TargetEntityType @map("entity_type")
+  entityId   String           @map("entity_id") @db.Uuid
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([tagId, entityType, entityId])
+  @@index([entityType, entityId])
+  @@map("taggings")
+}
+
+model Attachment {
+  id               String           @id @default(uuid()) @db.Uuid
+  uploadedByUserId String           @map("uploaded_by_user_id") @db.Uuid
+  worldId          String?          @map("world_id") @db.Uuid
+  entityType       TargetEntityType @map("entity_type")
+  entityId         String           @map("entity_id") @db.Uuid
+  fileUrl          String           @map("file_url")
+  mimeType         String           @map("mime_type")
+  fileSize         BigInt           @map("file_size")
+  width            Int?
+  height           Int?
+  altText          String?          @map("alt_text")
+  metadataJson     Json             @default("{}") @map("metadata_json")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  deletedAt        DateTime?        @map("deleted_at")
+
+  uploadedByUser User   @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  world          World? @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([worldId])
+  @@index([uploadedByUserId])
+  @@map("attachments")
+}
+
+model Comment {
+  id         String           @id @default(uuid()) @db.Uuid
+  worldId    String?          @map("world_id") @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  entityType TargetEntityType @map("entity_type")
+  entityId   String           @map("entity_id") @db.Uuid
+  body       String           @db.Text
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  deletedAt  DateTime?        @map("deleted_at")
+
+  world World? @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([worldId])
+  @@index([userId])
+  @@map("comments")
+}
+
+model Notification {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  worldId     String?           @map("world_id") @db.Uuid
+  type        NotificationType
+  entityType  TargetEntityType? @map("entity_type")
+  entityId    String?           @map("entity_id") @db.Uuid
+  payloadJson Json              @default("{}") @map("payload_json")
+  readAt      DateTime?         @map("read_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  world World? @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([worldId, createdAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id           String            @id @default(uuid()) @db.Uuid
+  actorUserId  String?           @map("actor_user_id") @db.Uuid
+  worldId      String?           @map("world_id") @db.Uuid
+  action       String
+  entityType   TargetEntityType? @map("entity_type")
+  entityId     String?           @map("entity_id") @db.Uuid
+  metadataJson Json              @default("{}") @map("metadata_json")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  actorUser User?  @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  world     World? @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@index([worldId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model ContentReport {
+  id              String           @id @default(uuid()) @db.Uuid
+  reporterUserId  String           @map("reporter_user_id") @db.Uuid
+  resolverUserId  String?          @map("resolver_user_id") @db.Uuid
+  worldId         String?          @map("world_id") @db.Uuid
+  entityType      TargetEntityType @map("entity_type")
+  entityId        String           @map("entity_id") @db.Uuid
+  reason          ReportReason
+  details         String?          @db.Text
+  status          ReportStatus     @default(OPEN)
+  resolutionNotes String?          @map("resolution_notes") @db.Text
+  createdAt       DateTime         @default(now()) @map("created_at")
+  resolvedAt      DateTime?        @map("resolved_at")
+
+  reporter User   @relation("ReportReporter", fields: [reporterUserId], references: [id], onDelete: Cascade)
+  resolver User?  @relation("ReportResolver", fields: [resolverUserId], references: [id], onDelete: SetNull)
+  world    World? @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@index([worldId, status])
+  @@index([reporterUserId])
+  @@index([entityType, entityId])
+  @@map("content_reports")
+}
+
+model CharacterMemory {
+  id               String            @id @default(uuid()) @db.Uuid
+  worldId          String            @map("world_id") @db.Uuid
+  characterId      String            @map("character_id") @db.Uuid
+  createdByUserId  String?           @map("created_by_user_id") @db.Uuid
+  sourceType       MemorySourceType  @default(MANUAL) @map("source_type")
+  sourceEntityType TargetEntityType? @map("source_entity_type")
+  sourceEntityId   String?           @map("source_entity_id") @db.Uuid
+  title            String
+  body             String            @db.Text
+  visibility       ContentVisibility @default(PRIVATE)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  archivedAt       DateTime?         @map("archived_at")
+
+  world         World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdByUser User?     @relation("MemoryCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([worldId, characterId])
+  @@index([characterId, createdAt])
+  @@index([sourceEntityType, sourceEntityId])
+  @@map("character_memories")
+}
+
+model AiSummary {
+  id                String                 @id @default(uuid()) @db.Uuid
+  worldId           String                 @map("world_id") @db.Uuid
+  requestedByUserId String?                @map("requested_by_user_id") @db.Uuid
+  entityType        TargetEntityType       @map("entity_type")
+  entityId          String                 @map("entity_id") @db.Uuid
+  summaryText       String                 @map("summary_text") @db.Text
+  modelName         String?                @map("model_name")
+  status            GeneratedContentStatus @default(COMPLETED)
+  metadataJson      Json                   @default("{}") @map("metadata_json")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  generatedAt       DateTime?              @map("generated_at")
+
+  world           World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  requestedByUser User? @relation("SummaryRequester", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([worldId, entityType, entityId])
+  @@index([requestedByUserId])
+  @@map("ai_summaries")
+}
+
+model GeneratedArtwork {
+  id              String                 @id @default(uuid()) @db.Uuid
+  worldId         String                 @map("world_id") @db.Uuid
+  sceneId         String?                @map("scene_id") @db.Uuid
+  characterId     String?                @map("character_id") @db.Uuid
+  createdByUserId String                 @map("created_by_user_id") @db.Uuid
+  prompt          String                 @db.Text
+  imageUrl        String?                @map("image_url")
+  status          GeneratedContentStatus @default(PENDING)
+  metadataJson    Json                   @default("{}") @map("metadata_json")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  completedAt     DateTime?              @map("completed_at")
+
+  world         World      @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  scene         Scene?     @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  character     Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  createdByUser User       @relation("ArtworkCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([worldId, status])
+  @@index([sceneId])
+  @@index([characterId])
+  @@index([createdByUserId])
+  @@map("generated_artwork")
+}
+
+enum TelegramImportStatus {
+  UPLOADED
+  PARSED
+  MAPPED
+  IMPORTED
+  FAILED
+  ROLLED_BACK
+}
+
+model TelegramImport {
+  id               String               @id @default(uuid()) @db.Uuid
+  userId           String               @map("user_id") @db.Uuid
+  worldId          String?              @map("world_id") @db.Uuid
+  fileName         String               @map("file_name")
+  fileHash         String?              @unique @map("file_hash")
+  messageCount     Int                  @default(0) @map("message_count")
+  participantCount Int                  @default(0) @map("participant_count")
+  firstMessageAt   DateTime?            @map("first_message_at")
+  lastMessageAt    DateTime?            @map("last_message_at")
+  status           TelegramImportStatus @default(UPLOADED)
+  errorMessage     String?              @map("error_message")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  createdSceneId   String?              @map("created_scene_id") @db.Uuid
+
+  user         User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  world        World?                      @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdScene Scene?                      @relation("ImportedScene", fields: [createdSceneId], references: [id], onDelete: SetNull)
+  participants TelegramImportParticipant[]
+  messages     TelegramImportMessage[]
+
+  @@index([userId])
+  @@index([worldId])
+  @@index([status])
+  @@map("telegram_imports")
+}
+
+model TelegramImportParticipant {
+  id                String  @id @default(uuid()) @db.Uuid
+  importId          String  @map("import_id") @db.Uuid
+  telegramName      String  @map("telegram_name")
+  mappedCharacterId String? @map("mapped_character_id") @db.Uuid
+
+  import          TelegramImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  mappedCharacter Character?     @relation(fields: [mappedCharacterId], references: [id], onDelete: SetNull)
+
+  @@unique([importId, telegramName])
+  @@index([importId])
+  @@map("telegram_import_participants")
+}
+
+model TelegramImportMessage {
+  id                String   @id @default(uuid()) @db.Uuid
+  importId          String   @map("import_id") @db.Uuid
+  telegramMessageId String?  @map("telegram_message_id")
+  senderName        String   @map("sender_name")
+  text              String   @db.Text
+  timestamp         DateTime
+  isSystem          Boolean  @default(false) @map("is_system")
+  sequenceNumber    Int      @map("sequence_number")
+
+  import TelegramImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId, sequenceNumber])
+  @@map("telegram_import_messages")
+}
+
+model WorldInviteLink {
+  id              String          @id @default(uuid()) @db.Uuid
+  worldId         String          @map("world_id") @db.Uuid
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  code            String          @unique
+  role            WorldMemberRole @default(READER)
+  maxUses         Int?            @map("max_uses")
+  currentUses     Int             @default(0) @map("current_uses")
+  expiresAt       DateTime?       @map("expires_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  world         World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdByUser User  @relation("InviteLinkCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([worldId])
+  @@map("world_invite_links")
+}
+
+model WorldJoinRequest {
+  id        String            @id @default(uuid()) @db.Uuid
+  worldId   String            @map("world_id") @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  status    JoinRequestStatus @default(PENDING)
+  message   String?           @db.Text
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  world World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([worldId, userId])
+  @@index([worldId, status])
+  @@map("world_join_requests")
+}
+
+model WorldWhitelist {
+  id            String   @id @default(uuid()) @db.Uuid
+  worldId       String   @map("world_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  addedByUserId String   @map("added_by_user_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  world       World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  user        User  @relation("WhitelistedUser", fields: [userId], references: [id], onDelete: Cascade)
+  addedByUser User  @relation("WhitelistAdder", fields: [addedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([worldId, userId])
+  @@map("world_whitelists")
+}
