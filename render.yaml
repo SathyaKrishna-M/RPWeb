@@ -17,7 +17,7 @@ services:
       - key: NEXTAUTH_SECRET
         generateValue: true
 
-  - type: psql
+  - type: postgres
     name: rpweb-db
     plan: free
     postgresMajorVersion: 15
