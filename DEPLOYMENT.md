@@ -39,6 +39,19 @@ prose — hundreds of thousands of messages.
    Everything else — `AUTH_SECRET`, `AUTH_TRUST_HOST`, `NODE_ENV` — is set by
    the blueprint.
 
+   > **Paste the bare URL only.** Neon shows the string inside a ready-to-run
+   > `psql '...'` command; copying that whole line in is the most common way to
+   > break the build. The value must start with `postgresql://` — no `psql`
+   > prefix, no surrounding quotes:
+   >
+   > ```
+   > postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require&channel_binding=require
+   > ```
+   >
+   > The build runs `node scripts/check-env.mjs` before touching Prisma, so a
+   > malformed value fails immediately with an explanation rather than a Prisma
+   > schema-validation dump.
+
 The build runs `prisma db push`, so the tables are created on the first deploy.
 No manual migration step.
 

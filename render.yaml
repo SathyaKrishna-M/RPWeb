@@ -15,7 +15,7 @@ services:
     # --include=dev is explicit because NODE_ENV=production is set below, and
     # npm can take that as a signal to skip devDependencies — which is where
     # typescript, tailwind and the prisma CLI live. Without them the build fails.
-    buildCommand: npm ci --include=dev && npx prisma generate && npx prisma db push && npm run build
+    buildCommand: npm ci --include=dev && node scripts/check-env.mjs && npx prisma generate && npx prisma db push && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
