@@ -22,25 +22,25 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-3xl p-6 lg:p-10">
       <div className="mb-10">
         <h1 className="text-3xl font-bold text-white tracking-tight">Settings</h1>
-        <p className="text-slate-400 mt-1">Your account and your data.</p>
+        <p className="text-muted mt-1">Your account and your data.</p>
       </div>
 
-      <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <section className="mb-8 rounded-2xl border border-line bg-surface p-6">
         <div className="flex items-center gap-3 mb-4">
-          <UserIcon size={20} className="text-indigo-400" />
+          <UserIcon size={20} className="text-accent" />
           <h2 className="text-lg font-semibold text-white">Account</h2>
         </div>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between gap-4">
-            <dt className="text-slate-500">Name</dt>
+            <dt className="text-muted">Name</dt>
             <dd className="text-slate-200">{user?.name || "Not set"}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-slate-500">Email</dt>
+            <dt className="text-muted">Email</dt>
             <dd className="text-slate-200 break-all">{user?.email}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-slate-500">Member since</dt>
+            <dt className="text-muted">Member since</dt>
             <dd className="text-slate-200">
               {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}
             </dd>
@@ -48,12 +48,12 @@ export default async function SettingsPage() {
         </dl>
       </section>
 
-      <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <section className="mb-8 rounded-2xl border border-line bg-surface p-6">
         <div className="flex items-center gap-3 mb-2">
-          <Download size={20} className="text-indigo-400" />
+          <Download size={20} className="text-accent" />
           <h2 className="text-lg font-semibold text-white">Export your worlds</h2>
         </div>
-        <p className="text-sm text-slate-400 mb-6">
+        <p className="text-sm text-muted mb-6">
           Download a full copy of any world. JSON keeps every field for re-importing;
           HTML is a readable transcript that opens in any browser.
         </p>
@@ -68,22 +68,22 @@ export default async function SettingsPage() {
         </div>
 
         {worlds.length === 0 ? (
-          <p className="text-sm text-slate-500">You are not part of any world yet.</p>
+          <p className="text-sm text-muted">You are not part of any world yet.</p>
         ) : (
           <ul className="space-y-3">
             {worlds.map((world) => (
               <li
                 key={world.id}
-                className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-xl border border-line bg-canvas p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <Link
                     href={`/worlds/${world.id}`}
-                    className="font-medium text-white hover:text-indigo-400"
+                    className="font-medium text-white hover:text-accent"
                   >
                     {world.name}
                   </Link>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted">
                     {world._count.messages} messages
                   </div>
                 </div>
@@ -91,13 +91,13 @@ export default async function SettingsPage() {
                   {/* Plain links, so the browser downloads them directly. */}
                   <a
                     href={`/api/worlds/${world.id}/export?format=json`}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+                    className="rounded-lg border border-line bg-elevated px-4 py-2 text-xs font-semibold text-white hover:bg-elevated"
                   >
                     JSON
                   </a>
                   <a
                     href={`/api/worlds/${world.id}/export?format=html`}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+                    className="rounded-lg border border-line bg-elevated px-4 py-2 text-xs font-semibold text-white hover:bg-elevated"
                   >
                     HTML
                   </a>
@@ -108,12 +108,12 @@ export default async function SettingsPage() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <section className="rounded-2xl border border-line bg-surface p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Session</h2>
         <form action={signOutAction}>
           <button
             type="submit"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-red-500/40 hover:text-red-400"
+            className="inline-flex items-center gap-2 rounded-lg border border-line bg-elevated px-5 py-2.5 text-sm font-semibold text-white transition hover:border-red-500/40 hover:text-red-400"
           >
             <LogOut size={16} /> Sign out
           </button>

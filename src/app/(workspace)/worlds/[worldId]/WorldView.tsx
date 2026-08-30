@@ -1,0 +1,74 @@
+"use client"
+
+import { useCallback, useState } from "react"
+import ChatClient from "./ChatClient"
+import WorldHeader, { type WorldHeaderWorld } from "./WorldHeader"
+import WorldInfoPanel, { type PanelParticipant, type PanelWorld } from "./WorldInfoPanel"
+import type { ComposerCharacter } from "./Composer"
+import type { SerializedMessage } from "@/lib/messages"
+
+/**
+ * Owns the layout for a single world: header, chat, and the info panel.
+ *
+ * The message total lives here rather than in the chat, because the header and
+ * the panel both display it and it changes as messages arrive.
+ */
+export default function WorldView({
+  world,
+  panelWorld,
+  participants,
+  initialMessages,
+  initialHasOlder,
+  initialCursor,
+  totalMessageCount,
+  myCharacterIds,
+  ownerCharacterIds,
+  postAsCharacters,
+  defaultCharacterId,
+  importDate,
+}: {
+  world: WorldHeaderWorld
+  panelWorld: PanelWorld
+  participants: PanelParticipant[]
+  initialMessages: SerializedMessage[]
+  initialHasOlder: boolean
+  initialCursor: string
+  totalMessageCount: number
+  myCharacterIds: string[]
+  ownerCharacterIds: string[]
+  postAsCharacters: ComposerCharacter[]
+  defaultCharacterId: string
+  importDate: string | null
+}) {
+  const [messageCount, setMessageCount] = useState(totalMessageCount)
+  // Stable identity, so the chat's reporting effect does not re-run every render.
+  const handleCount = useCallback((n: number) => setMessageCount(n), [])
+
+  return (
+    <div className="flex h-full">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <WorldHeader world={world} messageCount={messageCount} importDate={importDate} />
+        <div className="min-h-0 flex-1">
+          <ChatClient
+            initialMessages={initialMessages}
+            initialHasOlder={initialHasOlder}
+            initialCursor={initialCursor}
+            totalMessageCount={totalMessageCount}
+            worldId={world.id}
+            myCharacterIds={myCharacterIds}
+            ownerCharacterIds={ownerCharacterIds}
+            postAsCharacters={postAsCharacters}
+            defaultCharacterId={defaultCharacterId}
+            onCountChange={handleCount}
+          />
+        </div>
+      </div>
+
+      <WorldInfoPanel
+        world={panelWorld}
+        participants={participants}
+        messageCount={messageCount}
+      />
+    </div>
+  )
+}

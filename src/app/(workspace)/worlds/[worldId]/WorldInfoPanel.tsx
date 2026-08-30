@@ -1,0 +1,278 @@
+"use client"
+
+import { useState } from "react"
+import { Copy, Check, Crown, Info, Pencil, Settings, X, Loader2 } from "lucide-react"
+import { Avatar } from "@/components/layout/Sidebar"
+import { updateWorld } from "@/server/actions/worlds"
+import { characterHue } from "@/lib/messages"
+
+export type PanelParticipant = {
+  characterId: string
+  name: string
+  avatarUrl: string | null
+  role: string
+  isYou: boolean
+}
+
+export type PanelWorld = {
+  id: string
+  name: string
+  description: string | null
+  bannerUrl: string | null
+  inviteCode: string
+  createdAt: string
+  importedAt: string | null
+  ownedByYou: boolean
+}
+
+export default function WorldInfoPanel({
+  world,
+  participants,
+  messageCount,
+}: {
+  world: PanelWorld
+  participants: PanelParticipant[]
+  messageCount: number
+}) {
+  const [copied, setCopied] = useState<"code" | "link" | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const copy = async (what: "code" | "link") => {
+    const value =
+      what === "code"
+        ? world.inviteCode
+        : `${window.location.origin}/worlds/join?code=${world.inviteCode}`
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(what)
+      setTimeout(() => setCopied(null), 2000)
+    } catch {
+      setError("Could not copy to the clipboard")
+    }
+  }
+
+  const save = async (formData: FormData) => {
+    setSaving(true)
+    setError(null)
+    try {
+      await updateWorld(world.id, formData)
+      setEditing(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const formatDate = (iso: string) => new Date(iso).toLocaleDateString()
+
+  return (
+    <aside className="hidden xl:flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line bg-surface p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+        <Info size={16} className="text-accent" />
+        World Info
+      </div>
+
+      <section className="overflow-hidden rounded-2xl border border-line bg-elevated/50">
+        <WorldBanner name={world.name} url={world.bannerUrl} />
+
+        <div className="space-y-3 p-4">
+          {editing ? (
+            <form action={save} className="space-y-3">
+              <Field label="Name" name="name" defaultValue={world.name} required />
+              <Field
+                label="Description"
+                name="description"
+                defaultValue={world.description ?? ""}
+                textarea
+              />
+              <Field
+                label="Banner image URL"
+                name="bannerUrl"
+                defaultValue={world.bannerUrl ?? ""}
+                placeholder="https://..."
+              />
+              {error && <p className="text-xs text-red-400">{error}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white hover:bg-accent-soft disabled:opacity-50"
+                >
+                  {saving && <Loader2 size={13} className="animate-spin" />}
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(false)
+                    setError(null)
+                  }}
+                  className="rounded-lg border border-line px-3 py-2 text-xs font-semibold text-muted hover:text-ink"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-bold text-ink">{world.name}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  {world.description || "No description yet."}
+                </p>
+              </div>
+              {world.ownedByYou && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-muted transition hover:border-accent/50 hover:text-ink"
+                >
+                  <Pencil size={12} /> Edit
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-line bg-elevated/50 p-4">
+        <div className="text-xs font-medium text-muted">Invite Code</div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-2xl font-bold tracking-widest text-accent-soft">
+            {world.inviteCode}
+          </span>
+          <button
+            onClick={() => copy("code")}
+            title="Copy code"
+            className="rounded-lg border border-line p-2 text-muted transition hover:text-ink"
+          >
+            {copied === "code" ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+          </button>
+        </div>
+        <button
+          onClick={() => copy("link")}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-soft"
+        >
+          {copied === "link" ? <Check size={15} /> : <Copy size={15} />}
+          {copied === "link" ? "Copied!" : "Copy Invite Link"}
+        </button>
+      </section>
+
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line">
+        <Stat label="Messages" value={String(messageCount)} />
+        <Stat label="Members" value={String(participants.length)} />
+        <Stat
+          label="Imported"
+          value={world.importedAt ? formatDate(world.importedAt) : "—"}
+        />
+        <Stat label="Created" value={formatDate(world.createdAt)} />
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-line bg-elevated/50 p-4">
+        <div className="text-sm font-semibold text-ink">
+          Participants <span className="text-muted">({participants.length})</span>
+        </div>
+        <ul className="space-y-2">
+          {participants.map((p) => (
+            <li key={p.characterId} className="flex items-center gap-3">
+              <Avatar
+                name={p.name}
+                src={p.avatarUrl}
+                size={34}
+                ring={`hsl(${characterHue(p.characterId)}, 60%, 55%)`}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-sm font-medium text-ink">{p.name}</span>
+                  {p.role === "OWNER" && <Crown size={12} className="shrink-0 text-amber-400" />}
+                  {p.isYou && (
+                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft">
+                      You
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-muted">
+                  {p.role === "OWNER" ? "World Owner" : "Member"}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <a
+        href="/settings"
+        className="flex items-center justify-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-muted transition hover:text-ink"
+      >
+        <Settings size={15} /> Export &amp; settings
+      </a>
+    </aside>
+  )
+}
+
+/** Banner art if one is set, otherwise a gradient derived from the world name. */
+function WorldBanner({ name, url }: { name: string; url: string | null }) {
+  if (url) {
+    return (
+      // A world banner is an arbitrary user-supplied URL.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt="" className="h-32 w-full object-cover" />
+    )
+  }
+  const hue = characterHue(name)
+  return (
+    <div
+      className="h-32 w-full"
+      style={{
+        background: `linear-gradient(135deg, hsl(${hue},45%,22%), hsl(${(hue + 50) % 360},55%,12%))`,
+      }}
+    />
+  )
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-elevated/50 p-3">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="mt-0.5 truncate text-sm font-semibold text-ink">{value}</div>
+    </div>
+  )
+}
+
+function Field({
+  label,
+  name,
+  defaultValue,
+  placeholder,
+  required,
+  textarea,
+}: {
+  label: string
+  name: string
+  defaultValue: string
+  placeholder?: string
+  required?: boolean
+  textarea?: boolean
+}) {
+  const className =
+    "mt-1 block w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder-muted focus:border-accent focus:outline-none"
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-muted">{label}</span>
+      {textarea ? (
+        <textarea name={name} rows={3} defaultValue={defaultValue} className={className} />
+      ) : (
+        <input
+          name={name}
+          type="text"
+          required={required}
+          defaultValue={defaultValue}
+          placeholder={placeholder}
+          className={className}
+        />
+      )}
+    </label>
+  )
+}

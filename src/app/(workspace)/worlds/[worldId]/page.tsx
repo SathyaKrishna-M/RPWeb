@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { requireUserId } from "@/server/auth-guards"
 import { serializeMessage, MESSAGE_PAGE_SIZE } from "@/lib/messages"
-import ChatClient from "./ChatClient"
+import WorldView from "./WorldView"
 
 export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
   const userId = await requireUserId()
@@ -14,7 +14,7 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
       character: true,
       world: {
         include: {
-          _count: { select: { messages: true, members: true } },
+          members: { include: { character: true } },
           imports: { orderBy: { createdAt: "desc" }, take: 1 },
         },
       },
@@ -25,11 +25,13 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
     redirect("/dashboard")
   }
 
-  // Load the NEWEST page, not the oldest. Reading ascending with a fixed `take`
+  const world = member.world
+
+  // Load the NEWEST page, not the oldest: reading ascending with a fixed take
   // meant that once a world passed the limit the chat froze on its opening
   // scenes and nothing newly written was ever visible.
   const recent = await prisma.message.findMany({
-    where: { worldId },
+    where: { worldId, deletedAt: null },
     orderBy: { timestamp: "desc" },
     include: { character: true },
     take: MESSAGE_PAGE_SIZE + 1,
@@ -37,35 +39,64 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
 
   const hasOlder = recent.length > MESSAGE_PAGE_SIZE
   const page = hasOlder ? recent.slice(0, MESSAGE_PAGE_SIZE) : recent
-  const serializedMessages = page.reverse().map(serializeMessage)
+  const messages = page.reverse().map(serializeMessage)
 
-  const allMyCharacters = await prisma.character.findMany({
+  const totalMessageCount = await prisma.message.count({
+    where: { worldId, deletedAt: null },
+  })
+
+  // The polling cursor starts at the newest change we are already showing, so
+  // the first poll asks only for what happened after this render.
+  const newestChange = await prisma.message.findFirst({
+    where: { worldId },
+    orderBy: { updatedAt: "desc" },
+    select: { updatedAt: true },
+  })
+
+  const myCharacters = await prisma.character.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     select: { id: true, name: true, avatarUrl: true },
   })
 
+  const ownerCharacterIds = world.members
+    .filter((m) => m.role === "OWNER")
+    .map((m) => m.characterId)
+
   return (
-    <div className="flex h-[calc(100vh-4rem)] md:h-screen flex-col">
-      <ChatClient
-        initialMessages={serializedMessages}
-        initialHasOlder={hasOlder}
-        initialMessageCount={member.world._count.messages}
-        world={{
-          id: member.world.id,
-          name: member.world.name,
-          inviteCode: member.world.inviteCode,
-          memberCount: member.world._count.members,
-        }}
-        importDate={member.world.imports[0]?.createdAt.toISOString() ?? null}
-        worldId={worldId}
-        myCharacter={{
-          id: member.character.id,
-          name: member.character.name,
-          avatarUrl: member.character.avatarUrl,
-        }}
-        allMyCharacters={allMyCharacters}
-      />
-    </div>
+    <WorldView
+      world={{
+        id: world.id,
+        name: world.name,
+        inviteCode: world.inviteCode,
+        memberCount: world.members.length,
+      }}
+      panelWorld={{
+        id: world.id,
+        name: world.name,
+        description: world.description,
+        bannerUrl: world.bannerUrl,
+        inviteCode: world.inviteCode,
+        createdAt: world.createdAt.toISOString(),
+        importedAt: world.imports[0]?.createdAt.toISOString() ?? null,
+        ownedByYou: world.ownerId === userId,
+      }}
+      participants={world.members.map((m) => ({
+        characterId: m.characterId,
+        name: m.character.name,
+        avatarUrl: m.character.avatarUrl,
+        role: m.role,
+        isYou: m.userId === userId,
+      }))}
+      initialMessages={messages}
+      initialHasOlder={hasOlder}
+      initialCursor={(newestChange?.updatedAt ?? new Date(0)).toISOString()}
+      totalMessageCount={totalMessageCount}
+      myCharacterIds={myCharacters.map((c) => c.id)}
+      ownerCharacterIds={ownerCharacterIds}
+      postAsCharacters={myCharacters}
+      defaultCharacterId={member.characterId}
+      importDate={world.imports[0]?.createdAt.toISOString() ?? null}
+    />
   )
 }

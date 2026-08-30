@@ -1,23 +1,72 @@
 @import "tailwindcss";
 
-@theme inline {
+/*
+ * One dark theme, defined once here so components reference roles
+ * (surface, line, muted) rather than raw slate/indigo numbers. Changing the
+ * mood of the app is then a change to this block, not a sweep through markup.
+ */
+@theme {
+  --color-canvas: #0a0a12;
+  --color-surface: #12121c;
+  --color-elevated: #191926;
+  --color-line: #242438;
+  --color-ink: #e7e7f2;
+  --color-muted: #8b8ba7;
+  --color-accent: #7c5cff;
+  --color-accent-soft: #9a83ff;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/* The app ships a single dark theme; the slate palette is applied on <body>
-   in the root layout. Only the defaults that Tailwind does not set live here. */
 :root {
   color-scheme: dark;
 }
 
 body {
-  /* Use the Geist family loaded by next/font. The previous `Arial, Helvetica`
-     rule silently overrode it everywhere. */
+  /* The Geist family loaded by next/font. */
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Respect the safe area on phones with a home indicator, used by the mobile nav. */
+/* Respect the home-indicator area on phones, used by the mobile nav. */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Scrollbars, so the chat column does not get a bright system-default bar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-line);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #33334d;
+}
+
+/* Message actions appear on hover, but must stay reachable by keyboard. */
+.msg-actions {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.msg-row:hover .msg-actions,
+.msg-row:focus-within .msg-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  /* Touch devices have no hover, so never hide the controls there. */
+  .msg-actions {
+    opacity: 1;
+  }
 }

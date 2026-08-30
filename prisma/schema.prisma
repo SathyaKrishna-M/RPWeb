@@ -38,6 +38,7 @@ model World {
   id          String   @id @default(cuid())
   name        String
   description String?
+  bannerUrl   String?
   inviteCode  String   @unique
   ownerId     String
   createdAt   DateTime @default(now())
@@ -65,20 +66,27 @@ model WorldMember {
 }
 
 model Message {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   worldId     String
   characterId String
   content     String
-  format      String   @default("NARRATION") // ACTION, DIALOGUE, THOUGHT, NARRATION
-  timestamp   DateTime @default(now())
-  isImported  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  format      String    @default("NARRATION") // ACTION, DIALOGUE, THOUGHT, NARRATION
+  timestamp   DateTime  @default(now())
+  isImported  Boolean   @default(false)
+  editedAt    DateTime?
+  // Soft delete. Clients learn about new messages by polling for rows changed
+  // since a cursor; a hard delete leaves nothing to poll, so the other person
+  // would keep seeing a message that no longer exists until they reloaded.
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   world     World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   @@index([worldId, timestamp])
+  // Serves the polling query, which asks for everything changed since a cursor.
+  @@index([worldId, updatedAt])
 }
 
 model TelegramImport {

@@ -4,10 +4,37 @@ import { prisma } from "@/lib/prisma"
 import { requireUserId, requireOwnedCharacter, requireWorldMembership } from "@/server/auth-guards"
 import {
   serializeMessage,
+  isMessageFormat,
   MESSAGE_PAGE_SIZE,
   MAX_MESSAGE_LENGTH,
   type SerializedMessage,
 } from "@/lib/messages"
+
+/** Only the author may change a message; returns it once that is established. */
+async function requireOwnMessage(userId: string, messageId: string) {
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    include: { character: true },
+  })
+
+  if (!message || message.deletedAt) throw new Error("Message not found")
+
+  // Ownership is by character, and characters belong to users — so this also
+  // covers the case where somebody edits a message they posted as an alt.
+  if (message.character.userId !== userId) {
+    throw new Error("You can only change your own messages")
+  }
+  return message
+}
+
+function cleanContent(content: string) {
+  const trimmed = content?.trim() ?? ""
+  if (!trimmed) throw new Error("Message cannot be empty")
+  if (trimmed.length > MAX_MESSAGE_LENGTH) {
+    throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH.toLocaleString()} characters)`)
+  }
+  return trimmed
+}
 
 export async function createMessage(
   worldId: string,
@@ -18,11 +45,8 @@ export async function createMessage(
   const userId = await requireUserId()
   const member = await requireWorldMembership(userId, worldId)
 
-  const trimmed = content?.trim() ?? ""
-  if (!trimmed) throw new Error("Message cannot be empty")
-  if (trimmed.length > MAX_MESSAGE_LENGTH) {
-    throw new Error(`Message is too long (max ${MAX_MESSAGE_LENGTH} characters)`)
-  }
+  const trimmed = cleanContent(content)
+  if (!isMessageFormat(format)) throw new Error("Unknown message format")
 
   let targetCharacterId = member.characterId
   if (overrideCharacterId && overrideCharacterId !== member.characterId) {
@@ -30,43 +54,72 @@ export async function createMessage(
   }
 
   const message = await prisma.message.create({
-    data: {
-      worldId,
-      characterId: targetCharacterId,
-      content: trimmed,
-      format,
-    },
+    data: { worldId, characterId: targetCharacterId, content: trimmed, format },
     include: { character: true },
   })
 
-  // Readers pick this up on their next poll of fetchMessagesSince; there is no
-  // push channel, because the app runs on a platform with no long-lived process.
+  // Readers pick this up on their next poll; there is no push channel, because
+  // the app runs on a platform with no long-lived process.
   return serializeMessage(message)
 }
 
+export async function editMessage(messageId: string, content: string): Promise<SerializedMessage> {
+  const userId = await requireUserId()
+  const existing = await requireOwnMessage(userId, messageId)
+  const trimmed = cleanContent(content)
+
+  if (trimmed === existing.content) return serializeMessage(existing)
+
+  const message = await prisma.message.update({
+    where: { id: messageId },
+    data: { content: trimmed, editedAt: new Date() },
+    include: { character: true },
+  })
+  return serializeMessage(message)
+}
+
+export async function deleteMessage(messageId: string): Promise<{ id: string }> {
+  const userId = await requireUserId()
+  await requireOwnMessage(userId, messageId)
+
+  // Soft delete: the row has to keep existing so the other person's next poll
+  // can learn it went away. `updatedAt` advances, which is what they poll on.
+  await prisma.message.update({
+    where: { id: messageId },
+    data: { deletedAt: new Date() },
+  })
+  return { id: messageId }
+}
+
 /**
- * Messages newer than `afterTimestamp`. This is the chat's live feed: clients
- * poll it, so it is called often and must stay cheap — it is served by the
- * `[worldId, timestamp]` index on Message.
+ * Everything that changed since `cursor` — new messages, edits, and deletions.
+ *
+ * This is the chat's live feed. Polling on `updatedAt` rather than `timestamp`
+ * is what lets an edit or a deletion reach the other person; a query for newer
+ * timestamps alone would never mention a message that already existed.
  */
-export async function fetchMessagesSince(
+export async function fetchChangesSince(
   worldId: string,
-  afterTimestamp: string
-): Promise<SerializedMessage[]> {
+  cursor: string
+): Promise<{ messages: SerializedMessage[]; deletedIds: string[]; cursor: string }> {
   const userId = await requireUserId()
   await requireWorldMembership(userId, worldId)
 
-  const after = new Date(afterTimestamp)
-  if (Number.isNaN(after.getTime())) throw new Error("Invalid timestamp")
+  const since = new Date(cursor)
+  if (Number.isNaN(since.getTime())) throw new Error("Invalid cursor")
 
-  const messages = await prisma.message.findMany({
-    where: { worldId, timestamp: { gt: after } },
-    orderBy: { timestamp: "asc" },
+  const changed = await prisma.message.findMany({
+    where: { worldId, updatedAt: { gt: since } },
+    orderBy: { updatedAt: "asc" },
     include: { character: true },
     take: 500,
   })
 
-  return messages.map(serializeMessage)
+  const live = changed.filter((m) => !m.deletedAt)
+  const deletedIds = changed.filter((m) => m.deletedAt).map((m) => m.id)
+  const newest = changed.at(-1)?.updatedAt.toISOString() ?? cursor
+
+  return { messages: live.map(serializeMessage), deletedIds, cursor: newest }
 }
 
 /** The page of messages immediately before `beforeTimestamp`, oldest first. */
@@ -81,7 +134,7 @@ export async function fetchOlderMessages(
   if (Number.isNaN(before.getTime())) throw new Error("Invalid timestamp")
 
   const messages = await prisma.message.findMany({
-    where: { worldId, timestamp: { lt: before } },
+    where: { worldId, deletedAt: null, timestamp: { lt: before } },
     orderBy: { timestamp: "desc" },
     include: { character: true },
     take: MESSAGE_PAGE_SIZE + 1,

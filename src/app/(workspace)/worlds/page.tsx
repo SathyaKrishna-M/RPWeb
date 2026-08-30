@@ -22,18 +22,18 @@ export default async function WorldsPage() {
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Your Worlds</h1>
-          <p className="text-slate-400 mt-1">Explore the universes you are part of.</p>
+          <p className="text-muted mt-1">Explore the universes you are part of.</p>
         </div>
         <div className="flex gap-4">
           <Link
             href="/worlds/join"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-700"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-elevated px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-elevated"
           >
             <Users size={18} /> Join World
           </Link>
           <Link
             href="/worlds/new"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-soft"
           >
             <Plus size={18} /> Create World
           </Link>
@@ -41,22 +41,22 @@ export default async function WorldsPage() {
       </div>
 
       {worlds.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 p-12 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800">
-            <Globe size={32} className="text-slate-400" />
+        <div className="rounded-2xl border border-dashed border-line bg-surface/50 p-12 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-elevated">
+            <Globe size={32} className="text-muted" />
           </div>
           <h3 className="text-xl font-medium text-white">No worlds yet</h3>
-          <p className="mt-2 text-slate-400">Create a new world or join an existing one to start your journey.</p>
+          <p className="mt-2 text-muted">Create a new world or join an existing one to start your journey.</p>
           <div className="mt-6 flex justify-center gap-4">
             <Link
               href="/worlds/new"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-accent-soft"
             >
               Create World
             </Link>
             <Link
               href="/worlds/join"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-700"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-elevated px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-elevated"
             >
               Join World
             </Link>
@@ -68,14 +68,14 @@ export default async function WorldsPage() {
             <Link
               key={world.id}
               href={`/worlds/${world.id}`}
-              className="group block rounded-2xl border border-slate-800 bg-slate-900 p-6 transition-all hover:border-indigo-500/50 hover:bg-slate-800/50"
+              className="group block rounded-2xl border border-line bg-surface p-6 transition-all hover:border-accent/50 hover:bg-elevated/50"
             >
-              <h3 className="text-xl font-semibold text-white group-hover:text-indigo-400">{world.name}</h3>
-              <p className="mt-3 line-clamp-2 text-sm text-slate-400 leading-relaxed">
+              <h3 className="text-xl font-semibold text-white group-hover:text-accent">{world.name}</h3>
+              <p className="mt-3 line-clamp-2 text-sm text-muted leading-relaxed">
                 {world.description || "No description provided."}
               </p>
-              <div className="mt-6 flex items-center justify-between text-sm text-slate-500 border-t border-slate-800/50 pt-4">
-                <span>Code: <span className="font-mono text-indigo-300">{world.inviteCode}</span></span>
+              <div className="mt-6 flex items-center justify-between text-sm text-muted border-t border-line/50 pt-4">
+                <span>Code: <span className="font-mono text-accent-soft">{world.inviteCode}</span></span>
                 <span>{new Date(world.createdAt).toLocaleDateString()}</span>
               </div>
             </Link>

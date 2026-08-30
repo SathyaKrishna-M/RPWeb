@@ -1,91 +1,92 @@
 "use client"
 
-import { Copy, Check, Users, MessageSquare, Calendar, Download } from "lucide-react"
+import Link from "next/link"
 import { useState } from "react"
+import { ArrowLeft, Copy, Check, Users, MessageSquare, CalendarClock, Download, Hash } from "lucide-react"
 
 export type WorldHeaderWorld = {
-  id: string;
-  name: string;
-  inviteCode: string;
-  memberCount: number;
+  id: string
+  name: string
+  inviteCode: string
+  memberCount: number
 }
 
-type WorldHeaderProps = {
-  world: WorldHeaderWorld;
-  /** Live total, kept in step by the chat as messages arrive. */
-  messageCount: number;
-  importDate?: string | null;
-}
+export default function WorldHeader({
+  world,
+  messageCount,
+  importDate,
+}: {
+  world: WorldHeaderWorld
+  messageCount: number
+  importDate?: string | null
+}) {
+  const [copied, setCopied] = useState(false)
 
-export default function WorldHeader({ world, messageCount, importDate }: WorldHeaderProps) {
-  const [copiedCode, setCopiedCode] = useState(false)
-  const [copiedLink, setCopiedLink] = useState(false)
-
-  const inviteLink = typeof window !== "undefined" ? `${window.location.origin}/worlds/join?code=${world.inviteCode}` : ""
-
-  const copyCode = () => {
-    navigator.clipboard.writeText(world.inviteCode)
-    setCopiedCode(true)
-    setTimeout(() => setCopiedCode(false), 2000)
-  }
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(inviteLink)
-    setCopiedLink(true)
-    setTimeout(() => setCopiedLink(false), 2000)
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/worlds/join?code=${world.inviteCode}`
+      )
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* clipboard blocked; the code is visible in the panel regardless */
+    }
   }
 
   return (
-    <div className="border-b border-slate-800 bg-slate-900 px-6 py-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">{world.name}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-slate-400">
-            <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
-              <span className="text-slate-500">Code:</span>
-              <span className="font-mono text-indigo-400 font-medium">{world.inviteCode}</span>
-              <button onClick={copyCode} className="ml-1 text-slate-500 hover:text-indigo-400" title="Copy Code">
-                {copiedCode ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-              </button>
-            </div>
-            
-            <div className="flex items-center gap-1.5">
-              <Users size={16} className="text-slate-500" />
-              <span>{world.memberCount} Members</span>
-            </div>
-            
-            <div className="flex items-center gap-1.5">
-              <MessageSquare size={16} className="text-slate-500" />
-              <span>{messageCount} Messages</span>
-            </div>
+    <header className="flex flex-col gap-3 border-b border-line bg-surface/70 px-4 py-3 backdrop-blur md:flex-row md:items-center md:justify-between md:px-6">
+      <div className="flex min-w-0 items-start gap-3">
+        <Link
+          href="/worlds"
+          aria-label="Back to worlds"
+          className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line text-muted transition hover:text-ink"
+        >
+          <ArrowLeft size={17} />
+        </Link>
 
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold tracking-tight text-ink">{world.name}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+            <Pill icon={<Hash size={12} />}>
+              Code: <span className="font-mono text-accent-soft">{world.inviteCode}</span>
+            </Pill>
+            <Pill icon={<Users size={12} />}>{world.memberCount} Members</Pill>
+            <Pill icon={<MessageSquare size={12} />}>{messageCount} Messages</Pill>
             {importDate && (
-              <div className="flex items-center gap-1.5 text-indigo-300">
-                <Calendar size={16} />
-                <span>Imported {new Date(importDate).toLocaleDateString()}</span>
-              </div>
+              <Pill icon={<CalendarClock size={12} />}>
+                Imported {new Date(importDate).toLocaleDateString()}
+              </Pill>
             )}
           </div>
         </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <a
-            href={`/api/worlds/${world.id}/export?format=html`}
-            className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
-            title="Download this world as a readable transcript"
-          >
-            <Download size={16} />
-            Export
-          </a>
-          <button 
-            onClick={copyLink}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600/10 px-4 py-2 text-sm font-semibold text-indigo-400 transition hover:bg-indigo-600/20"
-          >
-            {copiedLink ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
-            {copiedLink ? "Copied Link!" : "Copy Invite Link"}
-          </button>
-        </div>
       </div>
-    </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        <a
+          href={`/api/worlds/${world.id}/export?format=html`}
+          className="flex items-center gap-2 rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink transition hover:border-accent/50"
+          title="Download this world as a readable transcript"
+        >
+          <Download size={15} /> Export
+        </a>
+        <button
+          onClick={copyLink}
+          className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-soft"
+        >
+          {copied ? <Check size={15} /> : <Copy size={15} />}
+          {copied ? "Copied!" : "Copy Invite Link"}
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function Pill({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-1.5 rounded-lg border border-line bg-elevated/60 px-2.5 py-1">
+      <span className="text-muted">{icon}</span>
+      {children}
+    </span>
   )
 }

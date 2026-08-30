@@ -75,3 +75,33 @@ export async function joinWorld(formData: FormData) {
 
   redirect(`/worlds/${world.id}`)
 }
+
+/** Owner-only edit of the world's presentation: name, description, banner. */
+export async function updateWorld(worldId: string, formData: FormData) {
+  const userId = await requireUserId()
+
+  const world = await prisma.world.findUnique({
+    where: { id: worldId },
+    select: { ownerId: true },
+  })
+  if (!world) throw new Error("World not found")
+  if (world.ownerId !== userId) throw new Error("Only the world owner can edit it")
+
+  const name = (formData.get("name") as string | null)?.trim()
+  const description = (formData.get("description") as string | null)?.trim() || null
+  const bannerUrl = (formData.get("bannerUrl") as string | null)?.trim() || null
+
+  if (!name) throw new Error("Name is required")
+  if (bannerUrl && !/^https?:\/\//i.test(bannerUrl)) {
+    throw new Error("Banner must be a http(s) image URL")
+  }
+
+  await prisma.world.update({
+    where: { id: worldId },
+    data: { name, description, bannerUrl },
+  })
+
+  revalidatePath(`/worlds/${worldId}`)
+  revalidatePath("/worlds")
+  revalidatePath("/dashboard")
+}

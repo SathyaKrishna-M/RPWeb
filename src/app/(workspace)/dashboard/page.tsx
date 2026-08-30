@@ -28,19 +28,19 @@ export default async function DashboardPage() {
     return (
       <div className="mx-auto max-w-3xl p-6 pt-12">
         <h1 className="text-3xl font-bold text-white mb-2">Welcome to your new adventure.</h1>
-        <p className="text-slate-400 mb-12">Let&rsquo;s get you set up in three simple steps.</p>
+        <p className="text-muted mb-12">Let&rsquo;s get you set up in three simple steps.</p>
 
         <div className="space-y-6">
           {/* STEP 1 */}
-          <div className={`rounded-xl border p-6 transition-all ${hasCharacters ? "border-slate-800 bg-slate-900/50" : "border-indigo-500/50 bg-indigo-500/10"}`}>
+          <div className={`rounded-xl border p-6 transition-all ${hasCharacters ? "border-line bg-surface/50" : "border-accent/50 bg-accent/10"}`}>
             <div className="flex items-start gap-4">
-              {hasCharacters ? <CheckCircle2 className="text-green-500 mt-1" /> : <Circle className="text-indigo-400 mt-1" />}
+              {hasCharacters ? <CheckCircle2 className="text-green-500 mt-1" /> : <Circle className="text-accent mt-1" />}
               <div className="flex-1">
-                <h3 className={`text-xl font-bold ${hasCharacters ? "text-slate-300 line-through opacity-70" : "text-white"}`}>Step 1: Create your first Character</h3>
+                <h3 className={`text-xl font-bold ${hasCharacters ? "text-muted line-through opacity-70" : "text-white"}`}>Step 1: Create your first Character</h3>
                 {!hasCharacters && (
                   <>
-                    <p className="mt-2 text-slate-400">Who will you be in this universe?</p>
-                    <Link href="/characters/new" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                    <p className="mt-2 text-muted">Who will you be in this universe?</p>
+                    <Link href="/characters/new" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-accent-soft">
                       <UserPlus size={18} /> Create Character
                     </Link>
                   </>
@@ -50,19 +50,19 @@ export default async function DashboardPage() {
           </div>
 
           {/* STEP 2 */}
-          <div className={`rounded-xl border p-6 transition-all ${!hasCharacters ? "border-slate-800 bg-slate-900 opacity-50 pointer-events-none" : hasWorlds ? "border-slate-800 bg-slate-900/50" : "border-indigo-500/50 bg-indigo-500/10"}`}>
+          <div className={`rounded-xl border p-6 transition-all ${!hasCharacters ? "border-line bg-surface opacity-50 pointer-events-none" : hasWorlds ? "border-line bg-surface/50" : "border-accent/50 bg-accent/10"}`}>
             <div className="flex items-start gap-4">
-               {hasWorlds ? <CheckCircle2 className="text-green-500 mt-1" /> : <Circle className="text-indigo-400 mt-1" />}
+               {hasWorlds ? <CheckCircle2 className="text-green-500 mt-1" /> : <Circle className="text-accent mt-1" />}
                <div className="flex-1">
-                <h3 className={`text-xl font-bold ${hasWorlds ? "text-slate-300 line-through opacity-70" : "text-white"}`}>Step 2: Import Telegram Chat OR Create World</h3>
+                <h3 className={`text-xl font-bold ${hasWorlds ? "text-muted line-through opacity-70" : "text-white"}`}>Step 2: Import Telegram Chat OR Create World</h3>
                 {!hasWorlds && hasCharacters && (
                   <>
-                    <p className="mt-2 text-slate-400">Bring your existing story over, or start a brand new one.</p>
+                    <p className="mt-2 text-muted">Bring your existing story over, or start a brand new one.</p>
                     <div className="mt-4 flex flex-col sm:flex-row gap-4">
-                      <Link href="/import" className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                      <Link href="/import" className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-accent-soft">
                         <UploadCloud size={18} /> Import Telegram Chat
                       </Link>
-                      <Link href="/worlds/new" className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-700">
+                      <Link href="/worlds/new" className="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-elevated px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-elevated">
                         <Globe size={18} /> Create New World
                       </Link>
                     </div>
@@ -73,13 +73,13 @@ export default async function DashboardPage() {
           </div>
 
           {/* STEP 3 */}
-          <div className={`rounded-xl border p-6 transition-all ${!hasWorlds ? "border-slate-800 bg-slate-900 opacity-50 pointer-events-none" : "border-indigo-500/50 bg-indigo-500/10"}`}>
+          <div className={`rounded-xl border p-6 transition-all ${!hasWorlds ? "border-line bg-surface opacity-50 pointer-events-none" : "border-accent/50 bg-accent/10"}`}>
              <div className="flex items-start gap-4">
-               <Circle className="text-indigo-400 mt-1" />
+               <Circle className="text-accent mt-1" />
                <div className="flex-1">
                 <h3 className="text-xl font-bold text-white">Step 3: Invite your RP Partner</h3>
                 {hasWorlds && (
-                  <p className="mt-2 text-slate-400">Head over to your world and share the invite code with your partner!</p>
+                  <p className="mt-2 text-muted">Head over to your world and share the invite code with your partner!</p>
                 )}
               </div>
             </div>
@@ -95,33 +95,33 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-6xl p-6 lg:p-10">
       <div className="mb-12">
         <h1 className="text-4xl font-bold text-white tracking-tight">Welcome back.</h1>
-        <p className="text-lg text-slate-400 mt-2">Pick up where you left off or start something new.</p>
+        <p className="text-lg text-muted mt-2">Pick up where you left off or start something new.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-        <Link href="/characters/new" className="group relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition-all hover:border-indigo-500 hover:bg-slate-800">
-          <div className="mb-4 rounded-full bg-slate-800 p-4 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+        <Link href="/characters/new" className="group relative flex flex-col items-center justify-center rounded-2xl border border-line bg-surface p-8 text-center transition-all hover:border-accent hover:bg-elevated">
+          <div className="mb-4 rounded-full bg-elevated p-4 text-accent group-hover:bg-accent/20 group-hover:text-accent-soft">
             <UserPlus size={32} />
           </div>
           <h3 className="text-lg font-semibold text-white">Create Character</h3>
         </Link>
 
-        <Link href="/import" className="group relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition-all hover:border-indigo-500 hover:bg-slate-800">
-          <div className="mb-4 rounded-full bg-slate-800 p-4 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+        <Link href="/import" className="group relative flex flex-col items-center justify-center rounded-2xl border border-line bg-surface p-8 text-center transition-all hover:border-accent hover:bg-elevated">
+          <div className="mb-4 rounded-full bg-elevated p-4 text-accent group-hover:bg-accent/20 group-hover:text-accent-soft">
             <UploadCloud size={32} />
           </div>
           <h3 className="text-lg font-semibold text-white">Import Telegram</h3>
         </Link>
 
-        <Link href="/worlds/new" className="group relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition-all hover:border-indigo-500 hover:bg-slate-800">
-          <div className="mb-4 rounded-full bg-slate-800 p-4 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+        <Link href="/worlds/new" className="group relative flex flex-col items-center justify-center rounded-2xl border border-line bg-surface p-8 text-center transition-all hover:border-accent hover:bg-elevated">
+          <div className="mb-4 rounded-full bg-elevated p-4 text-accent group-hover:bg-accent/20 group-hover:text-accent-soft">
             <Globe size={32} />
           </div>
           <h3 className="text-lg font-semibold text-white">Create World</h3>
         </Link>
 
-        <Link href="/worlds/join" className="group relative flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition-all hover:border-indigo-500 hover:bg-slate-800">
-          <div className="mb-4 rounded-full bg-slate-800 p-4 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:text-indigo-300">
+        <Link href="/worlds/join" className="group relative flex flex-col items-center justify-center rounded-2xl border border-line bg-surface p-8 text-center transition-all hover:border-accent hover:bg-elevated">
+          <div className="mb-4 rounded-full bg-elevated p-4 text-accent group-hover:bg-accent/20 group-hover:text-accent-soft">
             <Users size={32} />
           </div>
           <h3 className="text-lg font-semibold text-white">Join World</h3>
@@ -135,14 +135,14 @@ export default async function DashboardPage() {
             <Link
               key={world.id}
               href={`/worlds/${world.id}`}
-              className="group block rounded-2xl border border-slate-800 bg-slate-900 p-6 transition-all hover:border-indigo-500/50 hover:bg-slate-800/50"
+              className="group block rounded-2xl border border-line bg-surface p-6 transition-all hover:border-accent/50 hover:bg-elevated/50"
             >
-              <h3 className="text-xl font-semibold text-white group-hover:text-indigo-400">{world.name}</h3>
-              <p className="mt-3 line-clamp-2 text-sm text-slate-400 leading-relaxed">
+              <h3 className="text-xl font-semibold text-white group-hover:text-accent">{world.name}</h3>
+              <p className="mt-3 line-clamp-2 text-sm text-muted leading-relaxed">
                 {world.description || "No description provided."}
               </p>
-              <div className="mt-6 flex items-center justify-between text-sm text-slate-500 border-t border-slate-800/50 pt-4">
-                <span>Code: <span className="font-mono text-indigo-300">{world.inviteCode}</span></span>
+              <div className="mt-6 flex items-center justify-between text-sm text-muted border-t border-line/50 pt-4">
+                <span>Code: <span className="font-mono text-accent-soft">{world.inviteCode}</span></span>
                 <span>{new Date(world.createdAt).toLocaleDateString()}</span>
               </div>
             </Link>
