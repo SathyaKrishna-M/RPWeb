@@ -2,7 +2,6 @@
 
 import { prisma } from "@/lib/prisma"
 import { requireUserId, requireOwnedCharacter, requireWorldMembership } from "@/server/auth-guards"
-import { broadcastToWorld } from "@/server/realtime"
 import {
   serializeMessage,
   MESSAGE_PAGE_SIZE,
@@ -14,8 +13,7 @@ export async function createMessage(
   worldId: string,
   content: string,
   format: string,
-  overrideCharacterId?: string,
-  senderSocketId?: string
+  overrideCharacterId?: string
 ): Promise<SerializedMessage> {
   const userId = await requireUserId()
   const member = await requireWorldMembership(userId, worldId)
@@ -41,20 +39,15 @@ export async function createMessage(
     include: { character: true },
   })
 
-  const serialized = serializeMessage(message)
-
-  // Broadcast from the server, after the write. Clients are not trusted to
-  // announce their own messages, so nothing can be injected into a world by a
-  // crafted socket payload. The sender is excluded because it already renders
-  // the message optimistically; an echo would briefly show it twice.
-  broadcastToWorld(worldId, "new-message", serialized, senderSocketId)
-
-  return serialized
+  // Readers pick this up on their next poll of fetchMessagesSince; there is no
+  // push channel, because the app runs on a platform with no long-lived process.
+  return serializeMessage(message)
 }
 
 /**
- * Messages newer than `afterTimestamp`, used to catch up after a dropped
- * socket connection so nothing written while offline is missed.
+ * Messages newer than `afterTimestamp`. This is the chat's live feed: clients
+ * poll it, so it is called often and must stay cheap — it is served by the
+ * `[worldId, timestamp]` index on Message.
  */
 export async function fetchMessagesSince(
   worldId: string,

@@ -33,9 +33,8 @@ it is set to **Private**.
 git clone git@github.com:YOUR-USERNAME/RPWeb-backups.git backups
 ```
 
-**3. Point `DATABASE_URL` at the live database.** To back up production rather
-than your local database, use the Neon connection string in `.env`, or pass it
-for a single run:
+**3. Point `DATABASE_URL` at the live database.** Use Neon's **direct**
+(non-pooled) URL in `.env`, or pass it for a single run:
 
 ```bash
 DATABASE_URL="postgresql://..." npm run backup

@@ -1,136 +1,128 @@
 # Deploying RPWeb
 
-Two free services: **Neon** for the database, **Render** for the app.
+Two free services: **Neon** for the database, **Vercel** for the app.
 
-Neon rather than Render's own PostgreSQL because Render's free database is
-deleted 30 days after it is created, with no backups. Neon's free plan has no
-such expiry and suspends to zero when idle, waking automatically on the next
-connection — which suits a roleplay that goes quiet for a while.
-
-Free is still not a guarantee. Set up [BACKUPS.md](BACKUPS.md) as well; that is
-what actually makes the chat permanent.
+Free is not a guarantee from anyone. Set up [BACKUPS.md](BACKUPS.md) as well;
+that is what actually makes the chat permanent.
 
 ---
 
 ## 1. Create the database (Neon)
 
 1. Sign up at [neon.com](https://neon.com) and create a project.
-2. Copy the **connection string** — it looks like
-   `postgresql://user:password@ep-something.region.aws.neon.tech/dbname?sslmode=require`.
-3. Prefer the **direct** (non-pooled) connection string. This app runs as one
-   long-lived Node server with its own connection pool, so it does not need
-   Neon's pooler, and the direct URL avoids prepared-statement issues.
+2. Open **Connection Details** and copy **both** connection strings:
 
-Free plan at time of writing: 0.5 GB storage, which is a very large amount of
-prose — hundreds of thousands of messages.
+   | | Host contains | Used for |
+   | --- | --- | --- |
+   | **Pooled** | `-pooler` | The deployed app on Vercel |
+   | **Direct** | no `-pooler` | Your machine: `prisma db push`, `npm run backup` |
 
-## 2. Deploy the app (Render)
+This split matters. Vercel runs the app as many short-lived serverless
+instances, each opening its own database connections; without the pooler, Neon
+runs out of them. Prisma additionally needs `?pgbouncer=true` on a pooled URL,
+because PgBouncer in transaction mode cannot keep Prisma's prepared statements
+alive. Conversely, `prisma db push` needs a direct connection and will not work
+through the pooler.
 
-1. Push this repo to GitHub.
-2. Render Dashboard → **New +** → **Blueprint**, and connect the repo. It reads
-   [render.yaml](render.yaml).
-3. **Apply.** The blueprint creates one web service, `rpweb`.
-4. Open the service → **Environment** → add:
+Free plan: 0.5 GB of storage — hundreds of thousands of messages of prose.
 
-   | Key | Value |
-   | --- | --- |
-   | `DATABASE_URL` | your Neon connection string |
+## 2. Create the schema
 
-   Everything else — `AUTH_SECRET`, `AUTH_TRUST_HOST`, `NODE_ENV` — is set by
-   the blueprint.
-
-   > **Paste the bare URL only.** Neon shows the string inside a ready-to-run
-   > `psql '...'` command; copying that whole line in is the most common way to
-   > break the build. The value must start with `postgresql://` — no `psql`
-   > prefix, no surrounding quotes:
-   >
-   > ```
-   > postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require&channel_binding=require
-   > ```
-   >
-   > The build runs `node scripts/check-env.mjs` first, so a malformed value
-   > fails immediately with an explanation rather than a Prisma dump.
-   >
-   > Append `&connect_timeout=15`. Neon suspends idle databases, and the
-   > wake-up can outlast Prisma's 5-second default — which reports
-   > `P1001: Can't reach database server`, looking like an outage when the
-   > database is merely asleep.
-
-### Schema changes are applied from your machine, not the build
-
-The build does **not** run `prisma db push`. Render's build environment could
-not open a Postgres connection to Neon — it fails with
-`P1001: Can't reach database server` even though the same URL connects fine from
-a laptop — and a build should not depend on the database anyway.
-
-Apply the schema yourself whenever `prisma/schema.prisma` changes, with your
-production URL in `.env`:
+The build deliberately does **not** touch the database, so apply the schema from
+your machine first. Put the **direct** URL in `.env` as `DATABASE_URL`, then:
 
 ```bash
 npm run db:push
 ```
 
-Do this **before** deploying a change that needs new columns or tables.
+Run it again whenever `prisma/schema.prisma` changes, before deploying.
 
-### Why `AUTH_TRUST_HOST` matters
+## 3. Deploy the app (Vercel)
 
-Auth.js only trusts the incoming `Host` header when it recognises the platform
-(Vercel, Cloudflare) or when `AUTH_URL` / `AUTH_TRUST_HOST` is set. Note that
-`NEXTAUTH_URL` is **not** on that list. On Render in production, without this,
-every sign-in fails with `UntrustedHost`. The app also sets `trustHost: true` in
-[src/auth.ts](src/auth.ts) so it holds on any host.
+1. Push this repo to GitHub.
+2. [vercel.com/new](https://vercel.com/new) → import the repository. Vercel
+   detects Next.js; the defaults are correct.
+3. Add these **environment variables** before the first deploy:
 
-Set `NEXTAUTH_URL` only if you attach a custom domain, and then to the full
-origin (`https://your-domain.com`). Leaving it unset lets Auth.js derive the
-origin from the request, which is what you want on a `*.onrender.com` URL.
+   | Key | Value |
+   | --- | --- |
+   | `DATABASE_URL` | the **pooled** Neon URL, plus `&pgbouncer=true&connect_timeout=15` |
+   | `AUTH_SECRET` | a fresh random secret |
 
-## 3. Set up backups
+   Generate the secret with:
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   ```
+
+4. **Deploy.**
+
+> **Paste the bare URL only.** Neon shows the string inside a ready-to-run
+> `psql '...'` command; copying that whole line in is the most common way to
+> break the build. The value must start with `postgresql://` — no `psql`
+> prefix, no surrounding quotes. `scripts/check-env.mjs` runs first in the build
+> and says so plainly if it is wrong.
+
+`AUTH_TRUST_HOST` is not needed on Vercel — Auth.js recognises the platform, and
+the app sets `trustHost: true` in [src/auth.ts](src/auth.ts) regardless. Leave
+`NEXTAUTH_URL` unset unless you attach a custom domain.
+
+## 4. Set up backups
 
 Follow [BACKUPS.md](BACKUPS.md). Until that is done, the chat exists in exactly
 one place.
 
 ---
 
-## What runs
+## Why there is no realtime socket
 
-- **Build**: `npm ci && npx prisma generate && npx prisma db push && npm run build`
-- **Start**: `npm run start` → `node server.mjs`, binding Next.js and Socket.IO
-  to Render's `PORT`.
-- **Health check**: `/api/health`, which verifies the database is reachable, so
-  a deploy that cannot reach Postgres is not rolled out as healthy.
+The chat updates by **polling**, not WebSockets.
 
-## If the app cannot reach the database
+Vercel does not run custom servers, so the Socket.IO server this project used to
+carry cannot be deployed there. Vercel's own WebSocket support (public beta
+since June 2026) caps a connection at five minutes and would still need a shared
+broker to fan a message out across serverless instances.
 
-`P1001: Can't reach database server` means the connection did not open. In order
-of likelihood:
+So the client asks the server for anything new instead, via the
+`fetchMessagesSince` Server Action:
 
-1. **Neon was asleep and the connect timed out.** Add `&connect_timeout=15` to
-   `DATABASE_URL`. This is the usual cause of an intermittent P1001.
-2. **Region distance.** Check where your Neon project lives (the region is in
-   the hostname — e.g. `ap-southeast-1` is Singapore) against your Render
-   service's region. A mismatch adds latency to every single query. Pick the
-   same region for both; on Render this is fixed when the service is created.
-3. **Egress from that environment is blocked on port 5432.** This is what stops
-   the *build* from reaching Neon. If the running service hits it too, the
-   health check at `/api/health` will report
-   `{"status":"error","database":"unreachable"}` and the Render logs will carry
-   the underlying error. The fix in that case is Neon's serverless driver, which
-   tunnels Postgres over HTTPS on port 443 instead.
+| Situation | Interval |
+| --- | --- |
+| Someone is writing | every 3s |
+| Quiet for 2 minutes | every 15s |
+| Quiet for 10 minutes | every 60s |
+| Tab hidden | stopped entirely; resumes instantly when looked at again |
 
-## Known free-tier behaviour
+The backoff matters on a free plan: Neon suspends an idle database, and a
+forgotten open tab polling every 3 seconds would hold it awake and eat the
+monthly compute allowance for nothing.
 
-- **Render free web service** spins down after 15 minutes of inactivity and
-  takes roughly a minute to wake. The first page load after a quiet spell is
-  slow; nothing is lost.
-- **Neon free** suspends compute when idle and resumes on connection. The first
-  query after idling takes a moment.
+The cost is that a partner's message appears within a few seconds rather than
+instantly — imperceptible for prose roleplay.
 
-Neither loses data. Both are cosmetic delays.
+## Troubleshooting
+
+**`P1001: Can't reach database server`** — the connection did not open.
+
+1. Neon was asleep and the connect timed out. Add `&connect_timeout=15` to the
+   URL. This is the usual cause of an intermittent P1001.
+2. Check the region in the hostname (`ap-southeast-1` is Singapore) against
+   where the app runs. A mismatch adds latency to every query.
+
+**`the URL must start with the protocol postgresql://`** — the value has a
+`psql ` prefix or wrapping quotes. Paste only the URL.
+
+**Sign-in fails with `UntrustedHost`** — `trustHost: true` is missing from
+[src/auth.ts](src/auth.ts). Note that `NEXTAUTH_URL` does *not* satisfy Auth.js
+here; only `AUTH_URL`, `AUTH_TRUST_HOST`, or a recognised platform does.
+
+**Too many database connections** — the app is on Neon's direct endpoint.
+Switch `DATABASE_URL` to the pooled host with `&pgbouncer=true`.
 
 ## Moving the database later
 
-Because the app talks to plain PostgreSQL through Prisma, moving providers is
-just a new `DATABASE_URL` plus `npx prisma db push`. To carry existing data:
+The app talks to plain PostgreSQL through Prisma, so switching providers is a
+new `DATABASE_URL` plus `npm run db:push`. To carry the data across:
 
 ```bash
 pg_dump "$OLD_DATABASE_URL" --no-owner --format=custom -f rpweb.dump

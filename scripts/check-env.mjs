@@ -43,13 +43,25 @@ if (!raw) {
     if (trimmed !== raw) {
       warnings.push("DATABASE_URL has leading or trailing whitespace, which some clients keep.")
     }
-    // Neon's pooled endpoint needs ?pgbouncer=true for Prisma, and `prisma db
-    // push` needs a direct connection. The direct endpoint avoids both issues.
-    if (trimmed.includes("-pooler.") && !trimmed.includes("pgbouncer=true")) {
+    const isNeon = trimmed.includes("neon.tech")
+    const isPooled = trimmed.includes("-pooler.")
+
+    // Prisma keeps prepared statements alive across queries, which PgBouncer in
+    // transaction mode cannot honour; the flag turns them off.
+    if (isPooled && !trimmed.includes("pgbouncer=true")) {
       warnings.push(
-        "DATABASE_URL points at a pooled endpoint (-pooler) without ?pgbouncer=true.\n" +
-          "    Prefer the direct endpoint (drop `-pooler` from the host) — schema pushes\n" +
-          "    require a direct connection."
+        "DATABASE_URL uses Neon's pooled endpoint without ?pgbouncer=true.\n" +
+          "    Prisma needs that flag to work through PgBouncer. Append `&pgbouncer=true`."
+      )
+    }
+    // Serverless means many short-lived instances, each opening its own
+    // connections, so a deployed app has to go through the pooler.
+    if (isNeon && !isPooled && process.env.VERCEL) {
+      warnings.push(
+        "DATABASE_URL uses Neon's DIRECT endpoint on Vercel. Each serverless\n" +
+          "    instance opens its own connections and the database will run out of them.\n" +
+          "    Use the pooled host (insert `-pooler` before the first dot) with\n" +
+          "    `&pgbouncer=true`. Keep the direct URL locally, where db push needs it."
       )
     }
     // Neon suspends idle computes, so the first connection after a quiet spell

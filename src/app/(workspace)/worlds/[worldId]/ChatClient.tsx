@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { io, Socket } from "socket.io-client"
 import {
   createMessage,
   fetchMessagesSince,
@@ -9,7 +8,23 @@ import {
 } from "@/server/actions/messages"
 import type { SerializedMessage } from "@/lib/messages"
 import WorldHeader, { type WorldHeaderWorld } from "./WorldHeader"
-import { Send, User as UserIcon, ChevronDown, Loader2, WifiOff } from "lucide-react"
+import { Send, User as UserIcon, ChevronDown, Loader2, CloudOff } from "lucide-react"
+
+/**
+ * How often to ask the server for new messages.
+ *
+ * Vercel runs no long-lived process, so there is no socket to push updates —
+ * the chat pulls instead. The interval widens the longer nothing happens, which
+ * keeps a forgotten open tab from holding the database awake and burning
+ * through a free plan's compute allowance. Polling stops entirely while the tab
+ * is hidden and resumes immediately when it is looked at again.
+ */
+const POLL_ACTIVE_MS = 3_000
+const POLL_IDLE_MS = 15_000
+const POLL_DORMANT_MS = 60_000
+/** Quiet for this long -> widen the interval. */
+const IDLE_AFTER_MS = 2 * 60_000
+const DORMANT_AFTER_MS = 10 * 60_000
 
 type ChatMessage = SerializedMessage
 
@@ -64,14 +79,14 @@ export default function ChatClient({
 
   // How many messages exist before the loaded window. The world total is then
   // derived as this plus what is loaded, which stays correct no matter how a
-  // message arrives (own send, socket echo, catch-up) and needs no increment
-  // bookkeeping that could double-count the same message from two sources.
+  // message arrives (own send or poll) and needs no increment bookkeeping that
+  // could double-count the same message from two sources.
   const [olderNotLoaded, setOlderNotLoaded] = useState(
     Math.max(0, initialMessageCount - initialMessages.length)
   )
   const messageCount = olderNotLoaded + messages.length
   const [content, setContent] = useState("")
-  const [connected, setConnected] = useState(false)
+  const [syncFailing, setSyncFailing] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
 
   const [hasOlder, setHasOlder] = useState(initialHasOlder)
@@ -87,10 +102,13 @@ export default function ChatClient({
   const shouldAutoScrollRef = useRef(true)
 
   const knownIdsRef = useRef<Set<string>>(new Set(initialMessages.map((m) => m.id)))
-  const socketIdRef = useRef<string | undefined>(undefined)
+  // Timestamp of the last time anything actually changed, used to widen the
+  // polling interval when the world goes quiet. Seeded in the effect below
+  // rather than here, because reading the clock during render is impure.
+  const lastChangeRef = useRef(0)
 
-  // The newest timestamp we hold, read inside socket callbacks without making
-  // them depend on `messages` (which would tear the socket down on every send).
+  // The newest timestamp we hold, kept in a ref so the polling loop does not
+  // depend on `messages` and get torn down and rebuilt on every keystroke.
   const latestTimestampRef = useRef<string | null>(
     initialMessages.length ? initialMessages[initialMessages.length - 1].timestamp : null
   )
@@ -101,53 +119,68 @@ export default function ChatClient({
     knownIdsRef.current = new Set(messages.map((m) => m.id))
   }, [messages])
 
-  /** Adds messages that arrived live, ignoring ones already displayed. */
+  /** Adds messages that arrived from a poll, ignoring ones already displayed. */
   const addIncoming = useCallback((incoming: ChatMessage[]) => {
     const additions = incoming.filter((m) => !knownIdsRef.current.has(m.id))
     if (!additions.length) return
     additions.forEach((m) => knownIdsRef.current.add(m.id))
+    lastChangeRef.current = Date.now()
     setMessages((prev) => mergeMessages(prev, additions))
   }, [])
 
+  /** Fetches anything written since the newest message on screen. */
   const catchUp = useCallback(async () => {
     const since = latestTimestampRef.current
     if (!since) return
     try {
       const missed = await fetchMessagesSince(worldId, since)
       addIncoming(missed)
+      setSyncFailing(false)
     } catch (error) {
-      console.error("Failed to catch up on messages", error)
+      console.error("Failed to fetch new messages", error)
+      setSyncFailing(true)
     }
   }, [worldId, addIncoming])
 
   useEffect(() => {
-    const socket: Socket = io()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let cancelled = false
 
-    socket.on("connect", () => {
-      setConnected(true)
-      socketIdRef.current = socket.id
-      socket.emit("join-world", worldId)
-      // Covers the first connect and every reconnect: anything written while
-      // the socket was down gets fetched rather than silently lost.
-      void catchUp()
-    })
+    lastChangeRef.current = Date.now()
 
-    socket.on("disconnect", () => {
-      setConnected(false)
-      socketIdRef.current = undefined
-    })
+    const delay = () => {
+      const quietFor = Date.now() - lastChangeRef.current
+      if (quietFor > DORMANT_AFTER_MS) return POLL_DORMANT_MS
+      if (quietFor > IDLE_AFTER_MS) return POLL_IDLE_MS
+      return POLL_ACTIVE_MS
+    }
 
-    socket.on("new-message", (message: ChatMessage) => {
-      // The sender receives its own broadcast too; addIncoming drops it as a
-      // duplicate of the copy already added when the write returned.
-      addIncoming([message])
-    })
+    const tick = async () => {
+      if (cancelled) return
+      // A hidden tab has nobody reading it; skip the query entirely rather
+      // than keeping the database awake for nothing.
+      if (document.visibilityState === "visible") {
+        await catchUp()
+      }
+      if (!cancelled) timer = setTimeout(tick, delay())
+    }
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return
+      // Catch up straight away instead of waiting out the current interval.
+      if (timer) clearTimeout(timer)
+      void tick()
+    }
+
+    document.addEventListener("visibilitychange", onVisible)
+    timer = setTimeout(tick, POLL_ACTIVE_MS)
 
     return () => {
-      socket.emit("leave-world", worldId)
-      socket.disconnect()
+      cancelled = true
+      if (timer) clearTimeout(timer)
+      document.removeEventListener("visibilitychange", onVisible)
     }
-  }, [worldId, catchUp, addIncoming])
+  }, [catchUp])
 
   // Only pin to the bottom when the reader is already there, so loading older
   // messages or reading back doesn't yank them away.
@@ -214,17 +247,12 @@ export default function ChatClient({
       },
     }
     setMessages((prev) => [...prev, optimisticMessage])
+    lastChangeRef.current = Date.now()
 
     try {
-      const saved = await createMessage(
-        worldId,
-        text,
-        "MIXED",
-        sendingCharacter.id,
-        socketIdRef.current
-      )
-      // Swap the placeholder for the stored row; the socket echo of the same id
-      // is then ignored as a duplicate.
+      const saved = await createMessage(worldId, text, "MIXED", sendingCharacter.id)
+      // Swap the placeholder for the stored row, and register the real id so a
+      // poll that races the response does not add it a second time.
       knownIdsRef.current.add(saved.id)
       setMessages((prev) => mergeMessages(prev.filter((m) => m.id !== tempId), [saved]))
       knownIdsRef.current.delete(tempId)
@@ -416,12 +444,12 @@ export default function ChatClient({
             </div>
 
             <div className="flex items-center gap-3">
-              {!connected && (
+              {syncFailing && (
                 <span
                   className="flex items-center gap-1.5 text-xs font-medium text-amber-400"
-                  title="Reconnecting. Messages still send, and anything you miss loads when the connection returns."
+                  title="Cannot reach the server to check for new messages. It will keep retrying."
                 >
-                  <WifiOff size={14} /> Offline
+                  <CloudOff size={14} /> Not syncing
                 </span>
               )}
               <div className="flex items-center gap-2">
