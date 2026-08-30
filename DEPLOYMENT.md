@@ -48,12 +48,29 @@ prose — hundreds of thousands of messages.
    > postgresql://USER:PASSWORD@HOST/DBNAME?sslmode=require&channel_binding=require
    > ```
    >
-   > The build runs `node scripts/check-env.mjs` before touching Prisma, so a
-   > malformed value fails immediately with an explanation rather than a Prisma
-   > schema-validation dump.
+   > The build runs `node scripts/check-env.mjs` first, so a malformed value
+   > fails immediately with an explanation rather than a Prisma dump.
+   >
+   > Append `&connect_timeout=15`. Neon suspends idle databases, and the
+   > wake-up can outlast Prisma's 5-second default — which reports
+   > `P1001: Can't reach database server`, looking like an outage when the
+   > database is merely asleep.
 
-The build runs `prisma db push`, so the tables are created on the first deploy.
-No manual migration step.
+### Schema changes are applied from your machine, not the build
+
+The build does **not** run `prisma db push`. Render's build environment could
+not open a Postgres connection to Neon — it fails with
+`P1001: Can't reach database server` even though the same URL connects fine from
+a laptop — and a build should not depend on the database anyway.
+
+Apply the schema yourself whenever `prisma/schema.prisma` changes, with your
+production URL in `.env`:
+
+```bash
+npm run db:push
+```
+
+Do this **before** deploying a change that needs new columns or tables.
 
 ### Why `AUTH_TRUST_HOST` matters
 
@@ -81,6 +98,24 @@ one place.
   to Render's `PORT`.
 - **Health check**: `/api/health`, which verifies the database is reachable, so
   a deploy that cannot reach Postgres is not rolled out as healthy.
+
+## If the app cannot reach the database
+
+`P1001: Can't reach database server` means the connection did not open. In order
+of likelihood:
+
+1. **Neon was asleep and the connect timed out.** Add `&connect_timeout=15` to
+   `DATABASE_URL`. This is the usual cause of an intermittent P1001.
+2. **Region distance.** Check where your Neon project lives (the region is in
+   the hostname — e.g. `ap-southeast-1` is Singapore) against your Render
+   service's region. A mismatch adds latency to every single query. Pick the
+   same region for both; on Render this is fixed when the service is created.
+3. **Egress from that environment is blocked on port 5432.** This is what stops
+   the *build* from reaching Neon. If the running service hits it too, the
+   health check at `/api/health` will report
+   `{"status":"error","database":"unreachable"}` and the Render logs will carry
+   the underlying error. The fix in that case is Neon's serverless driver, which
+   tunnels Postgres over HTTPS on port 443 instead.
 
 ## Known free-tier behaviour
 

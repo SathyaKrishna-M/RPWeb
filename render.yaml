@@ -15,7 +15,13 @@ services:
     # --include=dev is explicit because NODE_ENV=production is set below, and
     # npm can take that as a signal to skip devDependencies — which is where
     # typescript, tailwind and the prisma CLI live. Without them the build fails.
-    buildCommand: npm ci --include=dev && node scripts/check-env.mjs && npx prisma generate && npx prisma db push && npm run build
+    #
+    # `prisma db push` deliberately does NOT run here. The build environment
+    # cannot open a Postgres connection (port 5432 egress fails with P1001 even
+    # though the database is reachable from elsewhere), and a build has no
+    # business needing the database anyway. Apply schema changes yourself with
+    # `npm run db:push` pointed at the production DATABASE_URL — see DEPLOYMENT.md.
+    buildCommand: npm ci --include=dev && node scripts/check-env.mjs && npx prisma generate && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:

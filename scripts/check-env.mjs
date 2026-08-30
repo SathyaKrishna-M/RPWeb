@@ -52,6 +52,16 @@ if (!raw) {
           "    require a direct connection."
       )
     }
+    // Neon suspends idle computes, so the first connection after a quiet spell
+    // waits for a cold start. Prisma's 5s default can expire first and report
+    // P1001 "Can't reach database server", which looks like an outage.
+    if (trimmed.includes("neon.tech") && !/[?&]connect_timeout=/.test(trimmed)) {
+      warnings.push(
+        "DATABASE_URL has no connect_timeout. Neon suspends idle databases and the\n" +
+          "    wake-up can outlast Prisma's 5s default, surfacing as P1001. Append\n" +
+          "    `&connect_timeout=15` to the URL."
+      )
+    }
   }
 }
 
