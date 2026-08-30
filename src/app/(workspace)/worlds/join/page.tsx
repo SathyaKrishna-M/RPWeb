@@ -1,14 +1,18 @@
-import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { joinWorld } from "@/server/actions/worlds"
+import { requireUserId } from "@/server/auth-guards"
 
-export default async function JoinWorldPage() {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
+export default async function JoinWorldPage(props: PageProps<"/worlds/join">) {
+  const userId = await requireUserId()
+
+  // The invite link produced by a world header is /worlds/join?code=ABC123,
+  // so prefill the field instead of making the invitee retype it.
+  const { code } = await props.searchParams
+  const prefilledCode = typeof code === "string" ? code.toUpperCase() : ""
 
   const characters = await prisma.character.findMany({
-    where: { userId: session.user.id }
+    where: { userId }
   })
 
   if (characters.length === 0) {
@@ -29,6 +33,7 @@ export default async function JoinWorldPage() {
                 name="inviteCode"
                 type="text"
                 required
+                defaultValue={prefilledCode}
                 placeholder="e.g. A1B2C3"
                 className="mt-2 block w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm uppercase"
               />

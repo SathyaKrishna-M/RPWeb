@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, Users, Globe, Upload, Settings, LogOut } from "lucide-react"
+import { signOutAction } from "@/server/actions/session"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -14,6 +15,7 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const isActiveHref = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
   return (
     <>
@@ -24,7 +26,7 @@ export function Sidebar() {
         </div>
         <nav className="flex-1 space-y-1 px-4 py-4">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname.startsWith(item.href)
+            const isActive = isActiveHref(item.href)
             return (
               <Link
                 key={item.href}
@@ -42,20 +44,24 @@ export function Sidebar() {
           })}
         </nav>
         <div className="p-4 border-t border-slate-800">
-          <Link
-            href="/api/auth/signout"
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-red-400"
-          >
-            <LogOut size={20} className="text-slate-500 hover:text-red-400" />
-            Sign Out
-          </Link>
+          {/* A form, not a link: signing out changes state, so it must not
+              happen on a GET that a prefetch or a crawler could trigger. */}
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-red-400"
+            >
+              <LogOut size={20} className="text-slate-500" />
+              Sign Out
+            </button>
+          </form>
         </div>
       </aside>
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-slate-800 bg-slate-950 px-2 pb-safe">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname.startsWith(item.href)
+          const isActive = isActiveHref(item.href)
           return (
             <Link
               key={item.href}

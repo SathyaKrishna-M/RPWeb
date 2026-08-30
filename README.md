@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RPWeb
 
-## Getting Started
+A private roleplay platform. Create characters, share a world with a partner via
+an invite code, and write together in real time. Existing Telegram roleplays can
+be imported from an HTML export and continued in place.
 
-First, run the development server:
+Built with Next.js 16 (App Router), React 19, Prisma + PostgreSQL, Auth.js v5,
+and Socket.IO on a custom Node server.
+
+---
+
+## Where the writing is kept
+
+The live database is **Neon** (free plan, no expiry). Because no free plan is
+guaranteed forever, every world is also backed up into a **private git repo** —
+`npm run backup` — so the story survives the database. See
+[BACKUPS.md](BACKUPS.md); set this up before you write anything you care about.
+
+You can also export any single world from **Settings → Export**, or the
+**Export** button in a world's header, as JSON or a readable HTML transcript.
+
+## Local development
+
+Requires Node.js 20+ and Docker (for PostgreSQL).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Generate a secret and paste it into `.env` as `AUTH_SECRET`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Start PostgreSQL:
 
-## Learn More
+```bash
+docker compose up -d
+```
 
-To learn more about Next.js, take a look at the following resources:
+Install, create the schema, and run:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm install && npx prisma db push && npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The app is at http://localhost:3000. `npm run dev` runs `server.mjs`, not
+`next dev` — the custom server is what hosts Socket.IO alongside Next.js, so
+starting Next on its own means no realtime updates.
 
-## Deploy on Vercel
+If port 3000 is already taken (a local PostgreSQL install, for instance, can be
+configured to sit on it), run on another port — Auth.js derives its origin from
+the request, so nothing else needs changing:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+PORT=3001 npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Development server (Next + Socket.IO) |
+| `npm run build` | Production build |
+| `npm start` | Production server |
+| `npm run typecheck` | TypeScript, no emit |
+| `npm run lint` | ESLint |
+| `npm run db:push` | Apply `prisma/schema.prisma` to the database |
+| `npm run db:studio` | Browse the database |
+| `npm run backup` | Export every world to `backups/` and commit it |
+
+## Deploying
+
+See [DEPLOYMENT.md](DEPLOYMENT.md). The short version: create a free
+[Neon](https://neon.com) database, push to GitHub, create a Render **Blueprint**
+from [render.yaml](render.yaml), and paste the Neon connection string in as
+`DATABASE_URL`. The blueprint handles `AUTH_SECRET` and `AUTH_TRUST_HOST`.
+
+## How it fits together
+
+| Path | Role |
+| --- | --- |
+| [server.mjs](server.mjs) | Node server hosting Next.js + Socket.IO; authenticates sockets |
+| [src/auth.ts](src/auth.ts) | Auth.js config (credentials, JWT sessions) |
+| [src/server/actions/](src/server/actions/) | All mutations, as Server Actions |
+| [src/server/auth-guards.ts](src/server/auth-guards.ts) | Session, character-ownership, and membership checks |
+| [prisma/schema.prisma](prisma/schema.prisma) | Data model |
+| [scripts/backup.mjs](scripts/backup.mjs) | Exports every world and commits it to a backup repo |
+
+### Realtime
+
+Clients never broadcast. A message is written by the `createMessage` Server
+Action, which then emits it to the world's room from the server. Sockets
+authenticate from the Auth.js session cookie on the handshake, and `join-world`
+verifies membership before the socket can see anything.
+
+### Writing format
+
+Text is styled as it is typed: `"dialogue"`, `*action*`, `**thought**`, and
+anything else as narration.

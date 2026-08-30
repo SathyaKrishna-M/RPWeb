@@ -1,82 +1,77 @@
 "use server"
 
-import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { randomBytes } from "crypto"
+import { requireUserId, requireOwnedCharacter } from "@/server/auth-guards"
+import { generateInviteCode } from "@/lib/invite-code"
 
 export async function createWorld(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("Unauthorized")
+  const userId = await requireUserId()
 
-  const name = formData.get("name") as string
-  const description = formData.get("description") as string | null
+  const name = (formData.get("name") as string | null)?.trim()
+  const description = (formData.get("description") as string | null)?.trim() || null
   const characterId = formData.get("characterId") as string
 
-  if (!name || !characterId) throw new Error("Name and Character are required")
-
-  // Generate a random 6-character alphanumeric invite code
-  const inviteCode = randomBytes(3).toString("hex").toUpperCase()
+  if (!name) throw new Error("Name is required")
+  // The character id comes straight from the form, so ownership is verified
+  // before it is attached to a membership.
+  const ownedCharacterId = await requireOwnedCharacter(userId, characterId)
 
   const world = await prisma.world.create({
     data: {
       name,
       description,
-      inviteCode,
-      ownerId: session.user.id,
+      inviteCode: await generateInviteCode(),
+      ownerId: userId,
       members: {
         create: {
-          userId: session.user.id,
-          characterId,
-          role: "OWNER"
-        }
-      }
-    }
+          userId,
+          characterId: ownedCharacterId,
+          role: "OWNER",
+        },
+      },
+    },
   })
 
   revalidatePath("/dashboard")
+  revalidatePath("/worlds")
   redirect(`/worlds/${world.id}`)
 }
 
 export async function joinWorld(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("Unauthorized")
+  const userId = await requireUserId()
 
-  const inviteCode = formData.get("inviteCode") as string
+  const inviteCode = (formData.get("inviteCode") as string | null)?.trim().toUpperCase()
   const characterId = formData.get("characterId") as string
 
-  if (!inviteCode || !characterId) throw new Error("Invite Code and Character are required")
+  if (!inviteCode) throw new Error("Invite code is required")
+  const ownedCharacterId = await requireOwnedCharacter(userId, characterId)
 
   const world = await prisma.world.findUnique({
-    where: { inviteCode }
+    where: { inviteCode },
+    select: { id: true },
   })
 
   if (!world) throw new Error("Invalid invite code")
 
-  // Check if user is already a member
   const existingMember = await prisma.worldMember.findUnique({
-    where: {
-      worldId_userId: {
-        worldId: world.id,
-        userId: session.user.id
-      }
-    }
+    where: { worldId_userId: { worldId: world.id, userId } },
+    select: { id: true },
   })
 
-  if (existingMember) {
-    redirect(`/worlds/${world.id}`)
+  if (!existingMember) {
+    await prisma.worldMember.create({
+      data: {
+        worldId: world.id,
+        userId,
+        characterId: ownedCharacterId,
+        role: "MEMBER",
+      },
+    })
+    revalidatePath("/dashboard")
+    revalidatePath("/worlds")
   }
 
-  await prisma.worldMember.create({
-    data: {
-      worldId: world.id,
-      userId: session.user.id,
-      characterId,
-      role: "MEMBER"
-    }
-  })
-
-  revalidatePath("/dashboard")
   redirect(`/worlds/${world.id}`)
 }

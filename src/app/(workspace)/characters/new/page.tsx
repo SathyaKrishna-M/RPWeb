@@ -1,14 +1,6 @@
-"use client"
-
 import { createCharacter } from "@/server/actions/characters"
-import { useActionState } from "react"
-import { useRouter } from "next/navigation"
 
 export default function NewCharacterPage() {
-  const router = useRouter()
-  // Since we use server actions directly in form action, we can just let it redirect.
-  // Or we can wrap it if we want loading state. For simplicity, native form action is fine.
-
   return (
     <div className="mx-auto max-w-2xl p-6 mt-12">
       <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-xl">

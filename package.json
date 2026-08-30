@@ -5,8 +5,13 @@
   "scripts": {
     "dev": "node server.mjs",
     "build": "next build",
-    "start": "NODE_ENV=production node server.mjs",
-    "lint": "eslint"
+    "start": "node server.mjs",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate",
+    "backup": "node -r dotenv/config scripts/backup.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -32,5 +37,8 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

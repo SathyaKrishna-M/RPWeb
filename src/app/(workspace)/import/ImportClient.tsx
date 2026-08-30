@@ -11,7 +11,9 @@ type ParsedMessage = {
   timestamp: string;
 };
 
-export default function ImportClient({ characters }: { characters: any[] }) {
+type ImportCharacter = { id: string; name: string }
+
+export default function ImportClient({ characters }: { characters: ImportCharacter[] }) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   
@@ -79,7 +81,7 @@ export default function ImportClient({ characters }: { characters: any[] }) {
             if (titleDate) {
               const match = titleDate.match(/^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}:\d{2}:\d{2})/);
               if (match) {
-                const [_, d, m, y, t] = match;
+                const [, d, m, y, t] = match;
                 const tzMatch = titleDate.match(/UTC([+-]\d{2}:\d{2})/);
                 const tz = tzMatch ? tzMatch[1] : 'Z';
                 const dObj = new Date(`${y}-${m}-${d}T${t}${tz}`);
@@ -107,7 +109,7 @@ export default function ImportClient({ characters }: { characters: any[] }) {
       setParticipants(partsArray);
       
       const initialMap: Record<string, string> = {};
-      const drafts: Record<string, any> = {};
+      const drafts: Record<string, { name: string; avatarUrl: string; bio: string }> = {};
       partsArray.forEach(p => {
         initialMap[p] = "SKIP"; // default to skip
         drafts[p] = { name: p, avatarUrl: "", bio: "" };
@@ -212,7 +214,7 @@ export default function ImportClient({ characters }: { characters: any[] }) {
             <Users size={32} className="text-indigo-400" />
           </div>
           <h2 className="text-2xl font-bold text-white">Import Preview</h2>
-          <p className="mt-2 text-slate-400">We've successfully read your file. Here is what we found:</p>
+          <p className="mt-2 text-slate-400">We&rsquo;ve successfully read your file. Here is what we found:</p>
           
           <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-xl bg-slate-950 p-4 border border-slate-800">

@@ -1,33 +1,38 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { validateRegistration } from "@/lib/validation"
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password } = await req.json()
+    const body = await req.json()
+    const result = validateRegistration(body)
 
-    if (!email || !password) {
-      return new NextResponse("Missing info", { status: 400 })
+    if (!result.ok) {
+      return new NextResponse(result.error, { status: 400 })
     }
 
+    const { name, email, password } = result
+
     const exist = await prisma.user.findUnique({
-      where: {
-        email: email
-      }
+      where: { email },
+      select: { id: true },
     })
 
     if (exist) {
-      return new NextResponse("Email already exists", { status: 400 })
+      return new NextResponse("An account with that email already exists.", { status: 400 })
     }
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
     const user = await prisma.user.create({
       data: {
-        name,
+        name: name || null,
         email,
-        passwordHash: hashedPassword
-      }
+        passwordHash: hashedPassword,
+      },
+      // Never select passwordHash here — this object is sent to the browser.
+      select: { id: true, name: true, email: true },
     })
 
     return NextResponse.json(user)

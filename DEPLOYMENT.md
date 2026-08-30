@@ -1,36 +1,93 @@
-# Deployment Guide
+# Deploying RPWeb
 
-This project is configured to deploy directly to **Render** using a web service and a free PostgreSQL database.
+Two free services: **Neon** for the database, **Render** for the app.
 
-## Steps to Deploy
+Neon rather than Render's own PostgreSQL because Render's free database is
+deleted 30 days after it is created, with no backups. Neon's free plan has no
+such expiry and suspends to zero when idle, waking automatically on the next
+connection — which suits a roleplay that goes quiet for a while.
 
-1. Create a GitHub repository and push your code to it.
-2. Sign up for [Render](https://render.com/).
-3. On your Render dashboard, click **New +** and select **Blueprint**.
-4. Connect your GitHub repository.
-5. Render will detect the `render.yaml` file in your repository and automatically configure:
-   - A PostgreSQL database instance.
-   - A Node.js Web Service running Next.js and Socket.IO.
+Free is still not a guarantee. Set up [BACKUPS.md](BACKUPS.md) as well; that is
+what actually makes the chat permanent.
 
-## Environment Variables
+---
 
-Render will automatically inject the `DATABASE_URL` and generate a secure `NEXTAUTH_SECRET`. 
+## 1. Create the database (Neon)
 
-**You must manually provide the following environment variable in the Render Dashboard:**
+1. Sign up at [neon.com](https://neon.com) and create a project.
+2. Copy the **connection string** — it looks like
+   `postgresql://user:password@ep-something.region.aws.neon.tech/dbname?sslmode=require`.
+3. Prefer the **direct** (non-pooled) connection string. This app runs as one
+   long-lived Node server with its own connection pool, so it does not need
+   Neon's pooler, and the direct URL avoids prepared-statement issues.
 
-* `NEXTAUTH_URL` - Set this to the public URL Render gives your web service (e.g., `https://rpweb-1x2y.onrender.com`).
+Free plan at time of writing: 0.5 GB storage, which is a very large amount of
+prose — hundreds of thousands of messages.
 
-## First Time Setup
+## 2. Deploy the app (Render)
 
-After deployment, Prisma will not automatically push your schema unless you configure a build command. Our `render.yaml` only runs `npm install && npm run build`.
+1. Push this repo to GitHub.
+2. Render Dashboard → **New +** → **Blueprint**, and connect the repo. It reads
+   [render.yaml](render.yaml).
+3. **Apply.** The blueprint creates one web service, `rpweb`.
+4. Open the service → **Environment** → add:
 
-To push your database schema to the newly provisioned PostgreSQL database on Render:
-1. Go to your Web Service in the Render dashboard.
-2. Click on **Shell**.
-3. Run the following command:
-   ```bash
-   npx prisma db push
-   ```
-4. This ensures your tables exist before users try to log in.
+   | Key | Value |
+   | --- | --- |
+   | `DATABASE_URL` | your Neon connection string |
 
-Your MVP is now live!
+   Everything else — `AUTH_SECRET`, `AUTH_TRUST_HOST`, `NODE_ENV` — is set by
+   the blueprint.
+
+The build runs `prisma db push`, so the tables are created on the first deploy.
+No manual migration step.
+
+### Why `AUTH_TRUST_HOST` matters
+
+Auth.js only trusts the incoming `Host` header when it recognises the platform
+(Vercel, Cloudflare) or when `AUTH_URL` / `AUTH_TRUST_HOST` is set. Note that
+`NEXTAUTH_URL` is **not** on that list. On Render in production, without this,
+every sign-in fails with `UntrustedHost`. The app also sets `trustHost: true` in
+[src/auth.ts](src/auth.ts) so it holds on any host.
+
+Set `NEXTAUTH_URL` only if you attach a custom domain, and then to the full
+origin (`https://your-domain.com`). Leaving it unset lets Auth.js derive the
+origin from the request, which is what you want on a `*.onrender.com` URL.
+
+## 3. Set up backups
+
+Follow [BACKUPS.md](BACKUPS.md). Until that is done, the chat exists in exactly
+one place.
+
+---
+
+## What runs
+
+- **Build**: `npm ci && npx prisma generate && npx prisma db push && npm run build`
+- **Start**: `npm run start` → `node server.mjs`, binding Next.js and Socket.IO
+  to Render's `PORT`.
+- **Health check**: `/api/health`, which verifies the database is reachable, so
+  a deploy that cannot reach Postgres is not rolled out as healthy.
+
+## Known free-tier behaviour
+
+- **Render free web service** spins down after 15 minutes of inactivity and
+  takes roughly a minute to wake. The first page load after a quiet spell is
+  slow; nothing is lost.
+- **Neon free** suspends compute when idle and resumes on connection. The first
+  query after idling takes a moment.
+
+Neither loses data. Both are cosmetic delays.
+
+## Moving the database later
+
+Because the app talks to plain PostgreSQL through Prisma, moving providers is
+just a new `DATABASE_URL` plus `npx prisma db push`. To carry existing data:
+
+```bash
+pg_dump "$OLD_DATABASE_URL" --no-owner --format=custom -f rpweb.dump
+```
+
+```bash
+pg_restore --no-owner -d "$NEW_DATABASE_URL" rpweb.dump
+```

@@ -52,6 +52,9 @@ export default async function CharactersPage() {
               <div className="flex items-center gap-4 mb-4">
                 <div className="h-12 w-12 shrink-0 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
                   {char.avatarUrl ? (
+                    // Avatars are arbitrary user-supplied URLs, so next/image's
+                    // host allowlist would reject most of them.
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={char.avatarUrl} alt={char.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center font-bold text-indigo-400">

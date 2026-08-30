@@ -1,23 +1,19 @@
-import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { editCharacter } from "@/server/actions/characters"
+import { requireUserId } from "@/server/auth-guards"
 
-export default async function EditCharacterPage({
-  params
-}: {
-  params: { characterId: string }
-}) {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
-
-  const { characterId } = await params
+export default async function EditCharacterPage(
+  props: PageProps<"/characters/[characterId]/edit">
+) {
+  const userId = await requireUserId()
+  const { characterId } = await props.params
 
   const char = await prisma.character.findUnique({
     where: { id: characterId }
   })
 
-  if (!char || char.userId !== session.user.id) {
+  if (!char || char.userId !== userId) {
     redirect("/characters")
   }
 
@@ -28,7 +24,7 @@ export default async function EditCharacterPage({
     <div className="mx-auto max-w-2xl p-6 mt-12">
       <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
         <h1 className="text-3xl font-bold text-white tracking-tight">Edit Character</h1>
-        <p className="mt-2 text-slate-400">Update {char.name}'s details.</p>
+        <p className="mt-2 text-slate-400">Update {char.name}&rsquo;s details.</p>
 
         <form action={updateAction} className="mt-8 space-y-6">
           <div className="space-y-5">

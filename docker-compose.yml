@@ -1,7 +1,6 @@
-version: '3.8'
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -10,7 +9,17 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Deliberately not `pgdata`: that volume already exists on some machines,
+      # initialised by an earlier version of this project with a different
+      # schema and different credentials. Postgres only applies POSTGRES_* on a
+      # first-time init, so reusing it silently breaks auth. This leaves the old
+      # volume untouched.
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
-  pgdata:
+  dbdata:

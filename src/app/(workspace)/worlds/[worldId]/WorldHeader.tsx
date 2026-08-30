@@ -1,21 +1,23 @@
 "use client"
 
-import { Copy, Check, Users, MessageSquare, Calendar } from "lucide-react"
+import { Copy, Check, Users, MessageSquare, Calendar, Download } from "lucide-react"
 import { useState } from "react"
 
-type WorldHeaderProps = {
-  world: {
-    name: string;
-    inviteCode: string;
-    _count: {
-      messages: number;
-      members: number;
-    }
-  };
-  importDate?: Date | null;
+export type WorldHeaderWorld = {
+  id: string;
+  name: string;
+  inviteCode: string;
+  memberCount: number;
 }
 
-export default function WorldHeader({ world, importDate }: WorldHeaderProps) {
+type WorldHeaderProps = {
+  world: WorldHeaderWorld;
+  /** Live total, kept in step by the chat as messages arrive. */
+  messageCount: number;
+  importDate?: string | null;
+}
+
+export default function WorldHeader({ world, messageCount, importDate }: WorldHeaderProps) {
   const [copiedCode, setCopiedCode] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
 
@@ -49,24 +51,32 @@ export default function WorldHeader({ world, importDate }: WorldHeaderProps) {
             
             <div className="flex items-center gap-1.5">
               <Users size={16} className="text-slate-500" />
-              <span>{world._count.members} Members</span>
+              <span>{world.memberCount} Members</span>
             </div>
             
             <div className="flex items-center gap-1.5">
               <MessageSquare size={16} className="text-slate-500" />
-              <span>{world._count.messages} Messages</span>
+              <span>{messageCount} Messages</span>
             </div>
 
             {importDate && (
               <div className="flex items-center gap-1.5 text-indigo-300">
                 <Calendar size={16} />
-                <span>Imported {importDate.toLocaleDateString()}</span>
+                <span>Imported {new Date(importDate).toLocaleDateString()}</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
+          <a
+            href={`/api/worlds/${world.id}/export?format=html`}
+            className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
+            title="Download this world as a readable transcript"
+          >
+            <Download size={16} />
+            Export
+          </a>
           <button 
             onClick={copyLink}
             className="flex items-center gap-2 rounded-lg bg-indigo-600/10 px-4 py-2 text-sm font-semibold text-indigo-400 transition hover:bg-indigo-600/20"

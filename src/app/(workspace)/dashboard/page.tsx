@@ -28,7 +28,7 @@ export default async function DashboardPage() {
     return (
       <div className="mx-auto max-w-3xl p-6 pt-12">
         <h1 className="text-3xl font-bold text-white mb-2">Welcome to your new adventure.</h1>
-        <p className="text-slate-400 mb-12">Let's get you set up in three simple steps.</p>
+        <p className="text-slate-400 mb-12">Let&rsquo;s get you set up in three simple steps.</p>
 
         <div className="space-y-6">
           {/* STEP 1 */}
