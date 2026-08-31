@@ -4,13 +4,15 @@ import { useState } from "react"
 import { Copy, Check, Crown, Info, Pencil, Settings, X, Loader2 } from "lucide-react"
 import { Avatar } from "@/components/layout/Sidebar"
 import { updateWorld } from "@/server/actions/worlds"
-import { characterHue } from "@/lib/messages"
+import { characterColor, fallbackColor } from "@/lib/characters"
 
 export type PanelParticipant = {
   characterId: string
   name: string
   avatarUrl: string | null
-  role: string
+  color: string | null
+  title: string | null
+  role: string | null
   isYou: boolean
 }
 
@@ -171,8 +173,11 @@ export default function WorldInfoPanel({
       </section>
 
       <section className="space-y-3 rounded-2xl border border-line bg-elevated/50 p-4">
-        <div className="text-sm font-semibold text-ink">
-          Participants <span className="text-muted">({participants.length})</span>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-sm font-semibold text-ink">
+            Cast <span className="text-muted">({participants.length})</span>
+          </span>
+          <span className="text-[11px] text-muted">anyone can write as these</span>
         </div>
         <ul className="space-y-2">
           {participants.map((p) => (
@@ -181,11 +186,16 @@ export default function WorldInfoPanel({
                 name={p.name}
                 src={p.avatarUrl}
                 size={34}
-                ring={`hsl(${characterHue(p.characterId)}, 60%, 55%)`}
+                ring={characterColor({ id: p.characterId, color: p.color })}
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="truncate text-sm font-medium text-ink">{p.name}</span>
+                  <span
+                    className="truncate text-sm font-medium"
+                    style={{ color: characterColor({ id: p.characterId, color: p.color }) }}
+                  >
+                    {p.name}
+                  </span>
                   {p.role === "OWNER" && <Crown size={12} className="shrink-0 text-amber-400" />}
                   {p.isYou && (
                     <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold text-accent-soft">
@@ -193,8 +203,8 @@ export default function WorldInfoPanel({
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-muted">
-                  {p.role === "OWNER" ? "World Owner" : "Member"}
+                <div className="truncate text-xs text-muted">
+                  {p.title || (p.role === "OWNER" ? "World Owner" : p.role ? "Member" : "Shared character")}
                 </div>
               </div>
             </li>
@@ -203,10 +213,10 @@ export default function WorldInfoPanel({
       </section>
 
       <a
-        href="/settings"
+        href="/characters"
         className="flex items-center justify-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-muted transition hover:text-ink"
       >
-        <Settings size={15} /> Export &amp; settings
+        <Settings size={15} /> Customise characters
       </a>
     </aside>
   )
@@ -221,13 +231,13 @@ function WorldBanner({ name, url }: { name: string; url: string | null }) {
       <img src={url} alt="" className="h-32 w-full object-cover" />
     )
   }
-  const hue = characterHue(name)
+  // No banner set: derive a stable gradient from the world's name so each
+  // world still looks like itself.
+  const seed = fallbackColor(name)
   return (
     <div
       className="h-32 w-full"
-      style={{
-        background: `linear-gradient(135deg, hsl(${hue},45%,22%), hsl(${(hue + 50) % 360},55%,12%))`,
-      }}
+      style={{ background: `linear-gradient(135deg, ${seed}33, #12121c)` }}
     />
   )
 }

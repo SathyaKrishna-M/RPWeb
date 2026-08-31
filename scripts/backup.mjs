@@ -102,7 +102,13 @@ try {
     orderBy: { createdAt: "asc" },
     include: {
       members: { include: { character: true, user: { select: { id: true, name: true, email: true } } } },
-      messages: { orderBy: { timestamp: "asc" }, include: { character: true } },
+      cast: { include: { character: true } },
+      // deletedAt: a deleted message should not live on in the backup.
+      messages: {
+        where: { deletedAt: null },
+        orderBy: { timestamp: "asc" },
+        include: { character: true },
+      },
     },
   })
 
@@ -123,14 +129,21 @@ try {
         inviteCode: world.inviteCode,
         createdAt: world.createdAt.toISOString(),
       },
-      characters: world.members.map((m) => ({
-        id: m.character.id,
-        name: m.character.name,
-        avatarUrl: m.character.avatarUrl,
-        bio: m.character.bio,
-        role: m.role,
-        playedBy: m.user.name,
-      })),
+      // The whole cast, not only the characters someone happens to play:
+      // anyone in the world can write as any of them.
+      characters: world.cast.map((entry) => {
+        const playedBy = world.members.find((m) => m.characterId === entry.characterId)
+        return {
+          id: entry.character.id,
+          name: entry.character.name,
+          avatarUrl: entry.character.avatarUrl,
+          color: entry.character.color,
+          title: entry.character.title,
+          bio: entry.character.bio,
+          role: playedBy?.role ?? null,
+          playedBy: playedBy?.user.name ?? null,
+        }
+      }),
       messages: world.messages.map((m) => ({
         id: m.id,
         character: m.character.name,

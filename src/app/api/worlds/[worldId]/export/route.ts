@@ -52,7 +52,12 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/worlds/[
     where: { id: worldId },
     include: {
       members: { include: { character: true, user: { select: { id: true, name: true } } } },
-      messages: { orderBy: { timestamp: "asc" }, include: { character: true } },
+      // Exclude messages the writer deleted; an export should match the chat.
+      messages: {
+        where: { deletedAt: null },
+        orderBy: { timestamp: "asc" },
+        include: { character: true },
+      },
     },
   })
 

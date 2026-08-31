@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { ArrowLeft, Copy, Check, Users, MessageSquare, CalendarClock, Download, Hash } from "lucide-react"
+import { ArrowLeft, Copy, Check, Users, MessageSquare, CalendarClock, Download, Hash, Drama } from "lucide-react"
 
 export type WorldHeaderWorld = {
   id: string
   name: string
   inviteCode: string
   memberCount: number
+  castCount: number
 }
 
 export default function WorldHeader({
@@ -52,6 +53,7 @@ export default function WorldHeader({
               Code: <span className="font-mono text-accent-soft">{world.inviteCode}</span>
             </Pill>
             <Pill icon={<Users size={12} />}>{world.memberCount} Members</Pill>
+            <Pill icon={<Drama size={12} />}>{world.castCount} Characters</Pill>
             <Pill icon={<MessageSquare size={12} />}>{messageCount} Messages</Pill>
             {importDate && (
               <Pill icon={<CalendarClock size={12} />}>

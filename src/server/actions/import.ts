@@ -95,6 +95,13 @@ export async function processTelegramImport(
           role: "OWNER",
         },
       },
+      // Everyone the import mentions becomes part of the world's cast, so the
+      // other writer can voice them too.
+      cast: {
+        create: [...new Set([ownedMyCharacterId, ...referencedIds])].map((characterId) => ({
+          characterId,
+        })),
+      },
     },
   })
 

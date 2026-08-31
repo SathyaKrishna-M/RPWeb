@@ -10,6 +10,7 @@ export type ComposerCharacter = {
   id: string
   name: string
   avatarUrl: string | null
+  color: string | null
 }
 
 /** The kinds that can be applied to a selection. Narration is the absence of one. */

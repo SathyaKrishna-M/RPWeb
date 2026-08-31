@@ -1,28 +1,38 @@
-import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
-import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Plus, User } from "lucide-react"
+import { prisma } from "@/lib/prisma"
+import { requireUserId } from "@/server/auth-guards"
+import { characterColor } from "@/lib/characters"
+import { Avatar } from "@/components/layout/Sidebar"
+import { Plus, Users, Pencil } from "lucide-react"
 
 export default async function CharactersPage() {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
+  const userId = await requireUserId()
 
+  // Everything this person can write as: what they created, plus the cast of
+  // every world they are in — those are shared and equally theirs to use.
   const characters = await prisma.character.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" }
+    where: {
+      OR: [
+        { userId },
+        { worlds: { some: { world: { members: { some: { userId } } } } } },
+      ],
+    },
+    include: { worlds: { include: { world: { select: { id: true, name: true } } } } },
+    orderBy: { createdAt: "asc" },
   })
 
   return (
     <div className="mx-auto max-w-5xl p-6 lg:p-10">
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Your Characters</h1>
-          <p className="text-muted mt-1">Manage your identities across the multiverse.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-ink">Characters</h1>
+          <p className="mt-1 text-muted">
+            Shared with everyone in the worlds they belong to.
+          </p>
         </div>
         <Link
           href="/characters/new"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-soft"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-soft"
         >
           <Plus size={18} /> Create Character
         </Link>
@@ -31,57 +41,70 @@ export default async function CharactersPage() {
       {characters.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line bg-surface/50 p-12 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-elevated">
-            <User size={32} className="text-muted" />
+            <Users size={30} className="text-muted" />
           </div>
-          <h3 className="text-xl font-medium text-white">No characters yet</h3>
-          <p className="mt-2 text-muted">Create your first character to start roleplaying.</p>
+          <h3 className="text-xl font-medium text-ink">No characters yet</h3>
+          <p className="mt-2 text-muted">Create your first one to start writing.</p>
           <Link
             href="/characters/new"
-            className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-accent-soft"
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-soft"
           >
             Create Character
           </Link>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {characters.map((char) => (
-            <div
-              key={char.id}
-              className="group rounded-2xl border border-line bg-surface p-6 transition hover:border-line hover:bg-elevated/50"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className="h-12 w-12 shrink-0 rounded-full bg-elevated overflow-hidden border border-line">
-                  {char.avatarUrl ? (
-                    // Avatars are arbitrary user-supplied URLs, so next/image's
-                    // host allowlist would reject most of them.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={char.avatarUrl} alt={char.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center font-bold text-accent">
-                      {char.name.charAt(0).toUpperCase()}
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {characters.map((char) => {
+            const color = characterColor(char)
+            return (
+              <div
+                key={char.id}
+                className="group rounded-2xl border border-line bg-surface p-5 transition hover:border-accent/40"
+                style={{ borderTop: `3px solid ${color}` }}
+              >
+                <div className="mb-4 flex items-center gap-3">
+                  <Avatar name={char.name} src={char.avatarUrl} size={48} ring={color} />
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-semibold" style={{ color }}>
+                      {char.name}
+                    </h3>
+                    <div className="truncate text-xs text-muted">
+                      {char.title || "No title"}
                     </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{char.name}</h3>
-                  <div className="text-xs text-muted">
-                    Created {new Date(char.createdAt).toLocaleDateString()}
                   </div>
                 </div>
+
+                <p className="mb-4 line-clamp-3 text-sm leading-relaxed text-muted">
+                  {char.bio || "No bio yet."}
+                </p>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {char.worlds.length === 0 ? (
+                    <span className="text-xs text-muted">Not in a world yet</span>
+                  ) : (
+                    char.worlds.map((w) => (
+                      <Link
+                        key={w.world.id}
+                        href={`/worlds/${w.world.id}`}
+                        className="rounded-lg border border-line bg-elevated px-2 py-1 text-[11px] text-muted transition hover:text-ink"
+                      >
+                        {w.world.name}
+                      </Link>
+                    ))
+                  )}
+                </div>
+
+                <div className="mt-4 flex justify-end border-t border-line pt-3">
+                  <Link
+                    href={`/characters/${char.id}/edit`}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-soft"
+                  >
+                    <Pencil size={13} /> Customise
+                  </Link>
+                </div>
               </div>
-              <p className="line-clamp-3 text-sm text-muted leading-relaxed mb-4">
-                {char.bio || "No bio provided."}
-              </p>
-              <div className="pt-4 border-t border-line flex justify-end">
-                <Link
-                  href={`/characters/${char.id}/edit`}
-                  className="text-sm font-medium text-accent hover:text-accent-soft"
-                >
-                  Edit Character
-                </Link>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

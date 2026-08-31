@@ -46,6 +46,7 @@ export type SerializedMessage = {
     id: string
     name: string
     avatarUrl: string | null
+    color: string | null
   }
 }
 
@@ -63,15 +64,7 @@ export function serializeMessage(message: Message & { character: Character }): S
       id: message.character.id,
       name: message.character.name,
       avatarUrl: message.character.avatarUrl,
+      color: message.character.color,
     },
   }
-}
-
-/** A stable hue per character, used for name colour and the accent bar. */
-export function characterHue(id: string) {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return Math.abs(hash) % 360
 }

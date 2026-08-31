@@ -15,23 +15,29 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  characters   Character[]
-  worldMembers WorldMember[]
-  worldsOwned  World[]       @relation("WorldOwner")
+  characters       Character[]
+  worldMembers     WorldMember[]
+  worldsOwned      World[]       @relation("WorldOwner")
+  authoredMessages Message[]     @relation("MessageAuthor")
 }
 
 model Character {
   id        String   @id @default(cuid())
+  /// Who created it. Not who may use it — that follows from the world's cast.
   userId    String
   name      String
   avatarUrl String?
   bio       String?
+  /// Accent colour as #rrggbb. Falls back to a hue derived from the id.
+  color     String?
+  title     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   worldMembers WorldMember[]
   messages     Message[]
+  worlds       WorldCharacter[]
 }
 
 model World {
@@ -48,6 +54,23 @@ model World {
   members  WorldMember[]
   messages Message[]
   imports  TelegramImport[]
+  cast     WorldCharacter[]
+}
+
+/// The characters belonging to a world. Every member may write as any of them,
+/// so a shared story does not fracture into one private cast per person — which
+/// is how a world ended up with two separate characters both called "Gold".
+model WorldCharacter {
+  id          String   @id @default(cuid())
+  worldId     String
+  characterId String
+  addedAt     DateTime @default(now())
+
+  world     World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([worldId, characterId])
+  @@index([worldId])
 }
 
 model WorldMember {
@@ -69,6 +92,9 @@ model Message {
   id          String    @id @default(cuid())
   worldId     String
   characterId String
+  /// Who typed it. With a shared cast, owning the character no longer implies
+  /// having written the line. Null for imported and pre-cast messages.
+  authorId    String?
   content     String
   format      String    @default("NARRATION") // ACTION, DIALOGUE, THOUGHT, NARRATION
   timestamp   DateTime  @default(now())
@@ -83,6 +109,7 @@ model Message {
 
   world     World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
   character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  author    User?     @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([worldId, timestamp])
   // Serves the polling query, which asks for everything changed since a cursor.

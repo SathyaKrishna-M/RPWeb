@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { Crown, MoreHorizontal, Pencil, Trash2, X, Check, Loader2 } from "lucide-react"
 import { Avatar } from "@/components/layout/Sidebar"
-import { characterHue, type SerializedMessage } from "@/lib/messages"
+import type { SerializedMessage } from "@/lib/messages"
+import { characterColor } from "@/lib/characters"
 import { messageTypes, SEGMENT_TYPES, type SegmentType } from "@/lib/segments"
 import MessageBody from "./MessageBody"
 
@@ -38,8 +39,7 @@ export default function MessageItem({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const hue = characterHue(message.character.id)
-  const accent = `hsl(${hue}, 70%, 66%)`
+  const accent = characterColor(message.character)
   const explicitType = explicitTypeOf(message.format, message.content)
 
   const submitEdit = async () => {

@@ -15,6 +15,7 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
       world: {
         include: {
           members: { include: { character: true } },
+          cast: { include: { character: true }, orderBy: { addedAt: "asc" } },
           imports: { orderBy: { createdAt: "desc" }, take: 1 },
         },
       },
@@ -53,11 +54,9 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
     select: { updatedAt: true },
   })
 
-  const myCharacters = await prisma.character.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, avatarUrl: true },
-  })
+  // Anyone in the world may write as anyone in its cast, so the choices in the
+  // composer come from the world rather than from what this person created.
+  const cast = world.cast.map((entry) => entry.character)
 
   const ownerCharacterIds = world.members
     .filter((m) => m.role === "OWNER")
@@ -70,6 +69,7 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
         name: world.name,
         inviteCode: world.inviteCode,
         memberCount: world.members.length,
+        castCount: cast.length,
       }}
       panelWorld={{
         id: world.id,
@@ -81,20 +81,30 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
         importedAt: world.imports[0]?.createdAt.toISOString() ?? null,
         ownedByYou: world.ownerId === userId,
       }}
-      participants={world.members.map((m) => ({
-        characterId: m.characterId,
-        name: m.character.name,
-        avatarUrl: m.character.avatarUrl,
-        role: m.role,
-        isYou: m.userId === userId,
-      }))}
+      participants={cast.map((character) => {
+        const player = world.members.find((m) => m.characterId === character.id)
+        return {
+          characterId: character.id,
+          name: character.name,
+          avatarUrl: character.avatarUrl,
+          color: character.color,
+          title: character.title,
+          role: player?.role ?? null,
+          isYou: player?.userId === userId,
+        }
+      })}
       initialMessages={messages}
       initialHasOlder={hasOlder}
       initialCursor={(newestChange?.updatedAt ?? new Date(0)).toISOString()}
       totalMessageCount={totalMessageCount}
-      myCharacterIds={myCharacters.map((c) => c.id)}
+      castCharacterIds={cast.map((c) => c.id)}
       ownerCharacterIds={ownerCharacterIds}
-      postAsCharacters={myCharacters}
+      postAsCharacters={cast.map((c) => ({
+        id: c.id,
+        name: c.name,
+        avatarUrl: c.avatarUrl,
+        color: c.color,
+      }))}
       defaultCharacterId={member.characterId}
       importDate={world.imports[0]?.createdAt.toISOString() ?? null}
     />

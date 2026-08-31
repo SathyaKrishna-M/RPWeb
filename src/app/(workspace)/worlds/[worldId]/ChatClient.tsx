@@ -52,7 +52,7 @@ export default function ChatClient({
   initialCursor,
   totalMessageCount,
   worldId,
-  myCharacterIds,
+  castCharacterIds,
   ownerCharacterIds,
   postAsCharacters,
   defaultCharacterId,
@@ -63,7 +63,7 @@ export default function ChatClient({
   initialCursor: string
   totalMessageCount: number
   worldId: string
-  myCharacterIds: string[]
+  castCharacterIds: string[]
   ownerCharacterIds: string[]
   postAsCharacters: ComposerCharacter[]
   defaultCharacterId: string
@@ -97,7 +97,9 @@ export default function ChatClient({
   // it is read while rendering, and a ref read during render is not safe.
   const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null)
 
-  const mine = new Set(myCharacterIds)
+  // Anything in the cast can be edited or removed by any member — the story is
+  // shared, and so is responsibility for it.
+  const mine = new Set(castCharacterIds)
   const owners = new Set(ownerCharacterIds)
 
   /** Pulls everything changed since the cursor: new, edited and deleted. */

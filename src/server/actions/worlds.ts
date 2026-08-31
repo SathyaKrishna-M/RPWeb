@@ -31,6 +31,7 @@ export async function createWorld(formData: FormData) {
           role: "OWNER",
         },
       },
+      cast: { create: { characterId: ownedCharacterId } },
     },
   })
 
@@ -43,10 +44,10 @@ export async function joinWorld(formData: FormData) {
   const userId = await requireUserId()
 
   const inviteCode = (formData.get("inviteCode") as string | null)?.trim().toUpperCase()
-  const characterId = formData.get("characterId") as string
+  const submittedCharacterId = formData.get("characterId") as string
 
   if (!inviteCode) throw new Error("Invite code is required")
-  const ownedCharacterId = await requireOwnedCharacter(userId, characterId)
+  const ownedCharacterId = await requireOwnedCharacter(userId, submittedCharacterId)
 
   const world = await prisma.world.findUnique({
     where: { inviteCode },
@@ -55,6 +56,24 @@ export async function joinWorld(formData: FormData) {
 
   if (!world) throw new Error("Invalid invite code")
 
+  // If the world already has a character by this name, join as that one rather
+  // than adding a second copy. Two rows with the same name would show as two
+  // different people, with separate colours and a split history.
+  const chosen = await prisma.character.findUnique({
+    where: { id: ownedCharacterId },
+    select: { name: true },
+  })
+  const existing = chosen
+    ? await prisma.worldCharacter.findFirst({
+        where: {
+          worldId: world.id,
+          character: { name: { equals: chosen.name, mode: "insensitive" } },
+        },
+        select: { characterId: true },
+      })
+    : null
+  const characterId = existing?.characterId ?? ownedCharacterId
+
   const existingMember = await prisma.worldMember.findUnique({
     where: { worldId_userId: { worldId: world.id, userId } },
     select: { id: true },
@@ -62,12 +81,12 @@ export async function joinWorld(formData: FormData) {
 
   if (!existingMember) {
     await prisma.worldMember.create({
-      data: {
-        worldId: world.id,
-        userId,
-        characterId: ownedCharacterId,
-        role: "MEMBER",
-      },
+      data: { worldId: world.id, userId, characterId, role: "MEMBER" },
+    })
+    await prisma.worldCharacter.upsert({
+      where: { worldId_characterId: { worldId: world.id, characterId } },
+      create: { worldId: world.id, characterId },
+      update: {},
     })
     revalidatePath("/dashboard")
     revalidatePath("/worlds")

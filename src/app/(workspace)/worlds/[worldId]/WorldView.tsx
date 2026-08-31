@@ -21,7 +21,7 @@ export default function WorldView({
   initialHasOlder,
   initialCursor,
   totalMessageCount,
-  myCharacterIds,
+  castCharacterIds,
   ownerCharacterIds,
   postAsCharacters,
   defaultCharacterId,
@@ -34,7 +34,7 @@ export default function WorldView({
   initialHasOlder: boolean
   initialCursor: string
   totalMessageCount: number
-  myCharacterIds: string[]
+  castCharacterIds: string[]
   ownerCharacterIds: string[]
   postAsCharacters: ComposerCharacter[]
   defaultCharacterId: string
@@ -55,7 +55,7 @@ export default function WorldView({
             initialCursor={initialCursor}
             totalMessageCount={totalMessageCount}
             worldId={world.id}
-            myCharacterIds={myCharacterIds}
+            castCharacterIds={castCharacterIds}
             ownerCharacterIds={ownerCharacterIds}
             postAsCharacters={postAsCharacters}
             defaultCharacterId={defaultCharacterId}

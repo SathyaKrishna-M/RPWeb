@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { requireUserId, requireOwnedCharacter, requireWorldMembership } from "@/server/auth-guards"
+import { requireUserId, requireCastCharacter, requireWorldMembership } from "@/server/auth-guards"
 import {
   serializeMessage,
   isStoredFormat,
@@ -19,9 +19,15 @@ async function requireOwnMessage(userId: string, messageId: string) {
 
   if (!message || message.deletedAt) throw new Error("Message not found")
 
-  // Ownership is by character, and characters belong to users — so this also
-  // covers the case where somebody edits a message they posted as an alt.
-  if (message.character.userId !== userId) {
+  // With a shared cast, owning the character no longer implies having written
+  // the message — the other writer may have voiced it. Authorship is recorded
+  // on the message itself.
+  if (message.authorId && message.authorId !== userId) {
+    throw new Error("You can only change your own messages")
+  }
+  // Messages written before authorship was recorded fall back to who owns the
+  // character, which is how it worked when they were written.
+  if (!message.authorId && message.character.userId !== userId) {
     throw new Error("You can only change your own messages")
   }
   return message
@@ -50,11 +56,11 @@ export async function createMessage(
 
   let targetCharacterId = member.characterId
   if (overrideCharacterId && overrideCharacterId !== member.characterId) {
-    targetCharacterId = await requireOwnedCharacter(userId, overrideCharacterId)
+    targetCharacterId = await requireCastCharacter(userId, worldId, overrideCharacterId)
   }
 
   const message = await prisma.message.create({
-    data: { worldId, characterId: targetCharacterId, content: trimmed, format },
+    data: { worldId, characterId: targetCharacterId, authorId: userId, content: trimmed, format },
     include: { character: true },
   })
 
