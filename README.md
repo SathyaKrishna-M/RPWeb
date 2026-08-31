@@ -69,9 +69,10 @@ npm run dev -- -p 3001
 | `npm start` | Production server (`next start`) |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |
-| `npm run db:push` | Apply `prisma/schema.prisma` to the database |
+| `npm run db:push` | Apply `prisma/schema.prisma` to the **local** database |
+| `npm run db:push:prod` | Apply it to **production** (Neon) |
 | `npm run db:studio` | Browse the database |
-| `npm run backup` | Export every world to `backups/` and commit it |
+| `npm run backup` | Export every world from production to `backups/` and commit |
 
 ## Deploying
 

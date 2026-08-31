@@ -28,14 +28,25 @@ Free plan: 0.5 GB of storage — hundreds of thousands of messages of prose.
 
 ## 2. Create the schema
 
-The build deliberately does **not** touch the database, so apply the schema from
-your machine first. Put the **direct** URL in `.env` as `DATABASE_URL`, then:
+The build deliberately does **not** touch the database, so the schema is applied
+from your machine. Put both URLs in `.env`:
 
-```bash
-npm run db:push
+```
+DATABASE_URL="postgresql://postgres:password@localhost:5432/rpweb"
+PRODUCTION_DATABASE_URL="postgresql://...neon.tech/neondb?sslmode=require"
 ```
 
-Run it again whenever `prisma/schema.prisma` changes, before deploying.
+Then, whenever `prisma/schema.prisma` changes:
+
+```bash
+npm run db:push:prod
+```
+
+> **Run this before deploying the code that needs it.** Deploying a change that
+> reads a column production does not have makes every page using it fail with a
+> bare "server error" — the message is hidden in production builds, so it gives
+> you nothing to go on. `npm run db:push` only touches your local database;
+> `db:push:prod` is the one that reaches Neon.
 
 ## 3. Deploy the app (Vercel)
 
