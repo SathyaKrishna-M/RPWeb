@@ -58,20 +58,36 @@ model CharacterAvatar {
 }
 
 model World {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  bannerUrl   String?
-  inviteCode  String   @unique
-  ownerId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  /// An externally hosted banner. Used when none has been uploaded.
+  bannerUrl       String?
+  /// Set when an uploaded banner exists; doubles as the cache-busting version.
+  bannerUpdatedAt DateTime?
+  inviteCode      String    @unique
+  ownerId         String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   owner    User             @relation("WorldOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members  WorldMember[]
   messages Message[]
   imports  TelegramImport[]
   cast     WorldCharacter[]
+  banner   WorldBanner?
+}
+
+/// Uploaded banner bytes. Separate from World for the same reason avatars are
+/// separate from Character: worlds are loaded on pages that have no use for the
+/// image, and a Bytes column would come along with every one.
+model WorldBanner {
+  worldId   String   @id
+  data      Bytes
+  mime      String
+  updatedAt DateTime @updatedAt
+
+  world World @relation(fields: [worldId], references: [id], onDelete: Cascade)
 }
 
 /// The characters belonging to a world. Every member may write as any of them,

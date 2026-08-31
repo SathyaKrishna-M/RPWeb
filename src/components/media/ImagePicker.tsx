@@ -2,69 +2,80 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ImagePlus, Trash2, ZoomIn, Check, X, Loader2 } from "lucide-react"
-import { AVATAR_SIZE } from "@/lib/characters"
-
-/** Side of the square crop window in the editor, in CSS pixels. */
-const VIEWPORT = 240
-
-type Transform = { zoom: number; x: number; y: number }
 
 /**
- * Picks, crops and resizes an avatar entirely in the browser.
+ * Picks, crops and resizes an image entirely in the browser.
  *
- * The cropped result is handed back as a data URL, small enough to travel in
- * the form and be stored directly. Doing the resize here rather than on the
- * server means a 6 MB phone photo never has to be uploaded at all.
+ * The result comes back as a WebP data URL, small enough to travel in a form
+ * and be stored directly. Resizing here rather than on the server means a
+ * multi-megabyte photo never has to be uploaded at all.
  *
- * The preview and the exported canvas are driven by the same transform, so what
- * you position is what gets saved.
+ * The preview and the exported canvas run off the same transform, so the frame
+ * you position is the frame that gets saved. Used for both square avatars and
+ * wide banners, which is why the crop window is a width and an aspect rather
+ * than a fixed square.
  */
-export default function AvatarPicker({
+export default function ImagePicker({
   value,
-  externalUrl,
+  hasExisting,
+  viewportWidth,
+  aspect,
+  outputWidth,
+  round = false,
+  quality = 0.85,
+  uploadLabel = "Upload picture",
+  changeLabel = "Change picture",
   onChange,
   onClear,
 }: {
-  /** Current image to show: a data URL just cropped, or an existing src. */
+  /** What to show as the current image, if anything. */
   value: string | null
-  externalUrl: string
+  /** Whether there is something to remove (stored image or a linked URL). */
+  hasExisting: boolean
+  viewportWidth: number
+  /** width / height. 1 is square; 3 is a wide banner. */
+  aspect: number
+  outputWidth: number
+  round?: boolean
+  quality?: number
+  uploadLabel?: string
+  changeLabel?: string
   onChange: (dataUrl: string) => void
   onClear: () => void
 }) {
   const [source, setSource] = useState<HTMLImageElement | null>(null)
-  const [transform, setTransform] = useState<Transform>({ zoom: 1, x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // Drives the cursor, so it is state rather than the ref below: a ref read
-  // during render is not safe.
   const [dragging, setDragging] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fileRef = useRef<HTMLInputElement>(null)
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(
     null
   )
 
-  /** Scale that makes the image just cover the square window. */
+  const viewportHeight = Math.round(viewportWidth / aspect)
+
+  /** Scale at which the image just covers the crop window. */
   const coverScale = useCallback(
-    (img: HTMLImageElement) => VIEWPORT / Math.min(img.naturalWidth, img.naturalHeight),
-    []
+    (img: HTMLImageElement) =>
+      Math.max(viewportWidth / img.naturalWidth, viewportHeight / img.naturalHeight),
+    [viewportWidth, viewportHeight]
   )
 
-  /** Keeps the image covering the window, so no empty corners can be cropped. */
+  /** Keeps the image covering the window, so no empty edge can be cropped in. */
   const clamp = useCallback(
-    (img: HTMLImageElement, next: Transform): Transform => {
-      const scale = coverScale(img) * next.zoom
-      const w = img.naturalWidth * scale
-      const h = img.naturalHeight * scale
-      const maxX = Math.max(0, (w - VIEWPORT) / 2)
-      const maxY = Math.max(0, (h - VIEWPORT) / 2)
+    (img: HTMLImageElement, z: number, next: { x: number; y: number }) => {
+      const scale = coverScale(img) * z
+      const maxX = Math.max(0, (img.naturalWidth * scale - viewportWidth) / 2)
+      const maxY = Math.max(0, (img.naturalHeight * scale - viewportHeight) / 2)
       return {
-        zoom: next.zoom,
         x: Math.min(maxX, Math.max(-maxX, next.x)),
         y: Math.min(maxY, Math.max(-maxY, next.y)),
       }
     },
-    [coverScale]
+    [coverScale, viewportWidth, viewportHeight]
   )
 
   const pickFile = async (file: File) => {
@@ -93,7 +104,8 @@ export default function AvatarPicker({
       })
 
       setSource(img)
-      setTransform({ zoom: 1, x: 0, y: 0 })
+      setZoom(1)
+      setOffset({ x: 0, y: 0 })
     } catch {
       setError("Could not open that image.")
     } finally {
@@ -105,20 +117,14 @@ export default function AvatarPicker({
     if (!source) return
     ;(e.target as Element).setPointerCapture(e.pointerId)
     setDragging(true)
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      originX: transform.x,
-      originY: transform.y,
-    }
+    dragRef.current = { startX: e.clientX, startY: e.clientY, originX: offset.x, originY: offset.y }
   }
 
   const onPointerMove = (e: React.PointerEvent) => {
     const drag = dragRef.current
     if (!drag || !source) return
-    setTransform((t) =>
-      clamp(source, {
-        zoom: t.zoom,
+    setOffset(
+      clamp(source, zoom, {
         x: drag.originX + (e.clientX - drag.startX),
         y: drag.originY + (e.clientY - drag.startY),
       })
@@ -130,53 +136,66 @@ export default function AvatarPicker({
     setDragging(false)
   }
 
-  const setZoom = (zoom: number) => {
+  const changeZoom = (next: number) => {
     if (!source) return
-    setTransform((t) => clamp(source, { ...t, zoom }))
+    setZoom(next)
+    setOffset((o) => clamp(source, next, o))
   }
 
-  /** Draws the visible square to a canvas at the stored size. */
+  /** Draws the visible frame to a canvas at the stored size. */
   const apply = () => {
     if (!source) return
+    const outputHeight = Math.round(outputWidth / aspect)
     const canvas = document.createElement("canvas")
-    canvas.width = AVATAR_SIZE
-    canvas.height = AVATAR_SIZE
+    canvas.width = outputWidth
+    canvas.height = outputHeight
+
     const ctx = canvas.getContext("2d")
     if (!ctx) {
       setError("This browser cannot process images.")
       return
     }
 
-    // The editor works in VIEWPORT pixels; the output is AVATAR_SIZE. Scaling
-    // the whole transform by that ratio makes the export match the preview.
-    const ratio = AVATAR_SIZE / VIEWPORT
-    const scale = coverScale(source) * transform.zoom * ratio
+    // The editor works in viewport pixels and the output is larger; scaling the
+    // whole transform by that ratio makes the export match the preview.
+    const ratio = outputWidth / viewportWidth
+    const scale = coverScale(source) * zoom * ratio
     const w = source.naturalWidth * scale
     const h = source.naturalHeight * scale
-    const x = (AVATAR_SIZE - w) / 2 + transform.x * ratio
-    const y = (AVATAR_SIZE - h) / 2 + transform.y * ratio
 
     ctx.imageSmoothingQuality = "high"
-    ctx.drawImage(source, x, y, w, h)
+    ctx.drawImage(
+      source,
+      (outputWidth - w) / 2 + offset.x * ratio,
+      (outputHeight - h) / 2 + offset.y * ratio,
+      w,
+      h
+    )
 
-    // WebP is markedly smaller than JPEG at this size; every browser that can
-    // run this app can produce it.
-    onChange(canvas.toDataURL("image/webp", 0.85))
+    // WebP is markedly smaller than JPEG at these sizes, and every browser that
+    // can run this app produces it.
+    onChange(canvas.toDataURL("image/webp", quality))
     setSource(null)
   }
 
   // Release the decoded image when the editor closes.
   useEffect(() => () => setSource(null), [])
 
-  const scale = source ? coverScale(source) * transform.zoom : 1
+  const scale = source ? coverScale(source) * zoom : 1
 
   return (
     <div className="space-y-3">
       {source ? (
-        <div className="space-y-3 rounded-2xl border border-line bg-canvas p-4">
+        <div className="space-y-3 rounded-2xl border border-line bg-canvas p-3">
           <div
-            className="relative mx-auto touch-none overflow-hidden rounded-full border border-line bg-black"
-            style={{ width: VIEWPORT, height: VIEWPORT, cursor: dragging ? "grabbing" : "grab" }}
+            className={`relative mx-auto touch-none overflow-hidden border border-line bg-black ${
+              round ? "rounded-full" : "rounded-xl"
+            }`}
+            style={{
+              width: viewportWidth,
+              height: viewportHeight,
+              cursor: dragging ? "grabbing" : "grab",
+            }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}
@@ -191,7 +210,7 @@ export default function AvatarPicker({
               style={{
                 width: source.naturalWidth * scale,
                 height: source.naturalHeight * scale,
-                transform: `translate(calc(-50% + ${transform.x}px), calc(-50% + ${transform.y}px))`,
+                transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
               }}
             />
           </div>
@@ -205,8 +224,8 @@ export default function AvatarPicker({
               min={1}
               max={4}
               step={0.01}
-              value={transform.zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
+              value={zoom}
+              onChange={(e) => changeZoom(Number(e.target.value))}
               className="w-full accent-[var(--color-accent)]"
               aria-label="Zoom"
             />
@@ -224,6 +243,7 @@ export default function AvatarPicker({
               type="button"
               onClick={() => setSource(null)}
               className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-muted hover:text-ink"
+              aria-label="Cancel crop"
             >
               <X size={14} />
             </button>
@@ -238,10 +258,10 @@ export default function AvatarPicker({
             className="inline-flex items-center gap-2 rounded-lg border border-line bg-elevated px-4 py-2 text-xs font-semibold text-ink transition hover:border-accent/50 disabled:opacity-50"
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
-            {value ? "Change picture" : "Upload picture"}
+            {value ? changeLabel : uploadLabel}
           </button>
 
-          {(value || externalUrl) && (
+          {hasExisting && (
             <button
               type="button"
               onClick={onClear}
@@ -250,10 +270,6 @@ export default function AvatarPicker({
               <Trash2 size={13} /> Remove
             </button>
           )}
-
-          <span className="text-[11px] text-muted">
-            Cropped square and saved at {AVATAR_SIZE}px
-          </span>
         </div>
       )}
 

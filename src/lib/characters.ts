@@ -43,6 +43,11 @@ export const AVATAR_SIZE = 256
 /** Refuse anything larger than a cropped 256px image could plausibly be. */
 export const MAX_AVATAR_BYTES = 400_000
 
+/** Banners are stored at this width, three times as wide as they are tall. */
+export const BANNER_WIDTH = 768
+export const BANNER_ASPECT = 3
+export const MAX_BANNER_BYTES = 1_200_000
+
 export const ALLOWED_AVATAR_MIME = ["image/webp", "image/jpeg", "image/png"] as const
 
 /**
@@ -66,19 +71,34 @@ export function avatarSrc(character: {
 }
 
 /** Splits a `data:` URL into its mime type and bytes. */
-export function parseDataUrl(dataUrl: string): { mime: string; bytes: Buffer } {
+export function parseDataUrl(
+  dataUrl: string,
+  maxBytes: number = MAX_AVATAR_BYTES
+): { mime: string; bytes: Buffer } {
   const match = /^data:([a-z]+\/[a-z0-9.+-]+);base64,(.+)$/i.exec(dataUrl.trim())
-  if (!match) throw new Error("Avatar image is not a valid data URL")
+  if (!match) throw new Error("Image is not a valid data URL")
 
   const mime = match[1].toLowerCase()
   if (!(ALLOWED_AVATAR_MIME as readonly string[]).includes(mime)) {
-    throw new Error("Avatar must be a WebP, JPEG or PNG image")
+    throw new Error("Image must be WebP, JPEG or PNG")
   }
 
   const bytes = Buffer.from(match[2], "base64")
-  if (bytes.length === 0) throw new Error("Avatar image is empty")
-  if (bytes.length > MAX_AVATAR_BYTES) {
-    throw new Error(`Avatar image is too large (max ${Math.round(MAX_AVATAR_BYTES / 1000)} KB)`)
+  if (bytes.length === 0) throw new Error("Image is empty")
+  if (bytes.length > maxBytes) {
+    throw new Error(`Image is too large (max ${Math.round(maxBytes / 1000)} KB)`)
   }
   return { mime, bytes }
+}
+
+/** Where to load a world's banner from, mirroring how avatars resolve. */
+export function bannerSrc(world: {
+  id: string
+  bannerUrl?: string | null
+  bannerUpdatedAt?: Date | string | null
+}): string | null {
+  if (world.bannerUpdatedAt) {
+    return `/api/worlds/${world.id}/banner?v=${new Date(world.bannerUpdatedAt).getTime()}`
+  }
+  return world.bannerUrl ?? null
 }

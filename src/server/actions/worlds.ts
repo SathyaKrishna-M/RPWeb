@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { requireUserId, requireOwnedCharacter } from "@/server/auth-guards"
 import { generateInviteCode } from "@/lib/invite-code"
+import { parseDataUrl, MAX_BANNER_BYTES } from "@/lib/characters"
 
 export async function createWorld(formData: FormData) {
   const userId = await requireUserId()
@@ -119,8 +120,38 @@ export async function updateWorld(worldId: string, formData: FormData) {
     where: { id: worldId },
     data: { name, description, bannerUrl },
   })
+  await applyBannerImage(worldId, formData.get("bannerImage"))
 
   revalidatePath(`/worlds/${worldId}`)
   revalidatePath("/worlds")
   revalidatePath("/dashboard")
+}
+
+/**
+ * Applies whatever the banner field asked for.
+ *
+ * Absent means the form did not touch it, so an uploaded banner survives an
+ * edit to the name. Empty means remove it. Anything else is a cropped image.
+ */
+async function applyBannerImage(worldId: string, raw: FormDataEntryValue | null) {
+  if (raw === null) return
+  const value = String(raw)
+
+  if (!value) {
+    await prisma.worldBanner.deleteMany({ where: { worldId } })
+    await prisma.world.update({ where: { id: worldId }, data: { bannerUpdatedAt: null } })
+    return
+  }
+
+  const { mime, bytes } = parseDataUrl(value, MAX_BANNER_BYTES)
+  await prisma.worldBanner.upsert({
+    where: { worldId },
+    create: { worldId, data: bytes, mime },
+    update: { data: bytes, mime },
+  })
+  // Bumped so the image URL changes and caches stop serving the old banner.
+  await prisma.world.update({
+    where: { id: worldId },
+    data: { bannerUpdatedAt: new Date() },
+  })
 }

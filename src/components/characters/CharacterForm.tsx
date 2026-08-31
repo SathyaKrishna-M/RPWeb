@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { Loader2, User as UserIcon } from "lucide-react"
-import { CHARACTER_COLORS, fallbackColor } from "@/lib/characters"
-import AvatarPicker from "./AvatarPicker"
+import { CHARACTER_COLORS, fallbackColor, AVATAR_SIZE } from "@/lib/characters"
+import ImagePicker from "@/components/media/ImagePicker"
 
 export type CharacterDefaults = {
   id?: string
@@ -102,10 +102,14 @@ export default function CharacterForm({
           <input type="hidden" name="avatarImage" value={croppedAvatar} />
         )}
         <div className="mt-2">
-          <AvatarPicker
+          <ImagePicker
             value={shownAvatar || null}
-            externalUrl={avatarUrl}
-            onChange={(dataUrl) => {
+            hasExisting={Boolean(shownAvatar || avatarUrl)}
+            viewportWidth={240}
+            aspect={1}
+            outputWidth={AVATAR_SIZE}
+            round
+            onChange={(dataUrl: string) => {
               setCroppedAvatar(dataUrl)
               // An upload supersedes a linked image.
               setAvatarUrl("")

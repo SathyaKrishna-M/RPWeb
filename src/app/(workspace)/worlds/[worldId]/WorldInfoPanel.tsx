@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Copy, Check, Crown, Info, Pencil, Settings, X, Loader2 } from "lucide-react"
 import { Avatar } from "@/components/layout/Sidebar"
 import { updateWorld } from "@/server/actions/worlds"
-import { characterColor, fallbackColor } from "@/lib/characters"
+import { characterColor, fallbackColor, BANNER_WIDTH, BANNER_ASPECT } from "@/lib/characters"
+import ImagePicker from "@/components/media/ImagePicker"
 
 export type PanelParticipant = {
   characterId: string
@@ -20,7 +21,10 @@ export type PanelWorld = {
   id: string
   name: string
   description: string | null
+  /** External banner URL, if one was set instead of an upload. */
   bannerUrl: string | null
+  /** Where the current banner loads from, upload or URL. */
+  bannerSrc: string | null
   inviteCode: string
   createdAt: string
   importedAt: string | null
@@ -40,6 +44,11 @@ export default function WorldInfoPanel({
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // A freshly cropped banner, as a data URL. Empty string means "remove";
+  // null means "leave whatever is stored alone".
+  const [croppedBanner, setCroppedBanner] = useState<string | null>(null)
+  const shownBanner = croppedBanner === null ? world.bannerSrc : croppedBanner || null
 
   const copy = async (what: "code" | "link") => {
     const value =
@@ -61,6 +70,7 @@ export default function WorldInfoPanel({
     try {
       await updateWorld(world.id, formData)
       setEditing(false)
+      setCroppedBanner(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save")
     } finally {
@@ -78,7 +88,7 @@ export default function WorldInfoPanel({
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-line bg-elevated/50">
-        <WorldBanner name={world.name} url={world.bannerUrl} />
+        <WorldBanner name={world.name} url={shownBanner} />
 
         <div className="space-y-3 p-4">
           {editing ? (
@@ -90,11 +100,34 @@ export default function WorldInfoPanel({
                 defaultValue={world.description ?? ""}
                 textarea
               />
+              <div>
+                <span className="text-xs font-medium text-muted">Banner</span>
+                {/* Absent unless touched, so saving the name leaves an
+                    uploaded banner in place. */}
+                {croppedBanner !== null && (
+                  <input type="hidden" name="bannerImage" value={croppedBanner} />
+                )}
+                <div className="mt-1.5">
+                  <ImagePicker
+                    value={shownBanner}
+                    hasExisting={Boolean(shownBanner || world.bannerUrl)}
+                    viewportWidth={276}
+                    aspect={BANNER_ASPECT}
+                    outputWidth={BANNER_WIDTH}
+                    quality={0.82}
+                    uploadLabel="Upload banner"
+                    changeLabel="Change banner"
+                    onChange={(dataUrl: string) => setCroppedBanner(dataUrl)}
+                    onClear={() => setCroppedBanner("")}
+                  />
+                </div>
+              </div>
+
               <Field
                 label="Banner image URL"
                 name="bannerUrl"
                 defaultValue={world.bannerUrl ?? ""}
-                placeholder="https://..."
+                placeholder="https://... (used when none uploaded)"
               />
               {error && <p className="text-xs text-red-400">{error}</p>}
               <div className="flex gap-2">

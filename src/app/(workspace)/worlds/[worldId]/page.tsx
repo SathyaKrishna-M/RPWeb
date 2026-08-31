@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { requireUserId } from "@/server/auth-guards"
 import { serializeMessage, MESSAGE_PAGE_SIZE } from "@/lib/messages"
-import { avatarSrc } from "@/lib/characters"
+import { avatarSrc, bannerSrc } from "@/lib/characters"
 import WorldView from "./WorldView"
 
 export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
@@ -77,6 +77,7 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
         name: world.name,
         description: world.description,
         bannerUrl: world.bannerUrl,
+        bannerSrc: bannerSrc(world),
         inviteCode: world.inviteCode,
         createdAt: world.createdAt.toISOString(),
         importedAt: world.imports[0]?.createdAt.toISOString() ?? null,
