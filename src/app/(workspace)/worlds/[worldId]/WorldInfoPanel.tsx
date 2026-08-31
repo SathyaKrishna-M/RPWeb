@@ -81,7 +81,7 @@ export default function WorldInfoPanel({
   const formatDate = (iso: string) => new Date(iso).toLocaleDateString()
 
   return (
-    <aside className="hidden xl:flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line bg-surface p-4">
+    <aside className="hidden xl:flex min-h-0 w-[340px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line bg-surface p-4">
       <div className="flex items-center gap-2 text-sm font-semibold text-ink">
         <Info size={16} className="text-accent" />
         World Info

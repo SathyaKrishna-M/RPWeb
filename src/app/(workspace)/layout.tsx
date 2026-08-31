@@ -30,7 +30,7 @@ export default async function WorkspaceLayout({
           avatarUrl: character ? avatarSrc(character) : null,
         }}
       />
-      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
     </div>
   )
 }

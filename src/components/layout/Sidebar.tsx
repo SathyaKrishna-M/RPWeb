@@ -27,14 +27,18 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     <>
       {/* Desktop */}
       <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-line bg-surface">
-        <div className="flex h-16 items-center gap-2.5 px-5">
+        <div className="flex h-16 shrink-0 items-center gap-2.5 px-5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
             <Feather size={18} />
           </span>
           <span className="text-lg font-semibold tracking-tight text-ink">RPWeb</span>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-2">
+        {/* min-h-0 is what lets this shrink: a flex item defaults to
+            min-height:auto and would otherwise refuse to go below its content,
+            pushing the account block below the fold on a short window with
+            nothing able to scroll to it. */}
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-2">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href)
             return (
@@ -55,7 +59,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
           })}
         </nav>
 
-        <div className="space-y-1 border-t border-line p-3">
+        <div className="shrink-0 space-y-1 border-t border-line p-3">
           <div className="flex items-center gap-3 rounded-xl bg-elevated/60 px-3 py-2.5">
             <Avatar name={user.name} src={user.avatarUrl} size={34} />
             <div className="min-w-0 flex-1">
