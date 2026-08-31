@@ -39,6 +39,13 @@ Start PostgreSQL:
 docker compose up -d
 ```
 
+> Keep `DATABASE_URL` pointed at this local database while developing. Running
+> the app locally against Neon opens a pool of connections on every restart, and
+> a force-killed dev server leaves them behind until they time out — enough
+> restarts and the free plan runs out of connections and every query fails with
+> `P2024`. Swap the Neon URL in only for `npm run db:push` after a schema change
+> or for `npm run backup`.
+
 Install, create the schema, and run:
 
 ```bash
@@ -94,5 +101,18 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the intervals.
 
 ### Writing format
 
-Text is styled as it is typed: `"dialogue"`, `*action*`, `**thought**`, and
-anything else as narration.
+A single message can hold several kinds at once, which is how roleplay is
+actually written. Markers inside the text decide which is which:
+
+| Written | Reads as |
+| --- | --- |
+| `"spoken words"` | dialogue |
+| `*performed*` | action |
+| `**thought**` | thought |
+| anything else | narration |
+
+The composer's **Mark as** buttons wrap the selected words for you, and a
+preview shows how the message will read before it is sent. Each line is
+labelled in the chat with what it is, so a post mixing speech, action and
+thought stays readable. Imported Telegram history uses the same quote
+convention, so it is labelled correctly without being touched.

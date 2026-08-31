@@ -3,87 +3,18 @@
 import { useState } from "react"
 import { Crown, MoreHorizontal, Pencil, Trash2, X, Check, Loader2 } from "lucide-react"
 import { Avatar } from "@/components/layout/Sidebar"
-import { characterHue, LEGACY_MIXED_FORMAT, type SerializedMessage } from "@/lib/messages"
+import { characterHue, type SerializedMessage } from "@/lib/messages"
+import { messageTypes, SEGMENT_TYPES, type SegmentType } from "@/lib/segments"
+import MessageBody from "./MessageBody"
 
 /**
- * Renders the body of a message.
- *
- * Newer messages carry an explicit format chosen in the composer. Imported and
- * older ones are stored as NARRATION or MIXED with the styling implied by
- * punctuation, so those are still parsed inline for `"dialogue"`, `*action*`
- * and `**thought**`.
+ * A message stored as one specific kind, with no markers of its own, was
+ * written before a single post could mix kinds. Render it wholly as that kind.
  */
-function Body({ message }: { message: SerializedMessage }) {
-  const { format, content } = message
-
-  if (format === "DIALOGUE") {
-    return (
-      <p className="text-[15px] italic leading-relaxed text-ink">
-        &ldquo;{content}&rdquo;
-      </p>
-    )
-  }
-  if (format === "ACTION") {
-    return <p className="leading-relaxed italic text-muted">{content}</p>
-  }
-  if (format === "THOUGHT") {
-    return <p className="leading-relaxed font-medium text-accent-soft">{content}</p>
-  }
-  if (format === "NARRATION" && !/(".*?"|\*\*.*?\*\*|\*.*?\*)/.test(content)) {
-    return <p className="leading-relaxed text-ink">{content}</p>
-  }
-  if (format !== LEGACY_MIXED_FORMAT && format !== "NARRATION") {
-    return <p className="leading-relaxed text-ink">{content}</p>
-  }
-
-  const parts = content.split(/("[\s\S]*?"|\*\*[\s\S]*?\*\*|\*[\s\S]*?\*)/g)
-  return (
-    <p className="leading-relaxed">
-      {parts.map((part, i) => {
-        if (!part) return null
-        if (part.startsWith('"') && part.endsWith('"') && part.length >= 2) {
-          return (
-            <span key={i} className="text-[15px] italic text-ink">
-              {part}
-            </span>
-          )
-        }
-        if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
-          return (
-            <span key={i} className="font-medium text-accent-soft">
-              {part.slice(2, -2)}
-            </span>
-          )
-        }
-        if (part.startsWith("*") && part.endsWith("*") && part.length >= 2) {
-          return (
-            <span key={i} className="italic text-muted">
-              {part.slice(1, -1)}
-            </span>
-          )
-        }
-        return (
-          <span key={i} className="text-ink">
-            {part}
-          </span>
-        )
-      })}
-    </p>
-  )
-}
-
-/** Tags shown next to the name, describing what the line contains. */
-function tagsFor(message: SerializedMessage) {
-  const { format, content } = message
-  if (format !== LEGACY_MIXED_FORMAT && format !== "NARRATION") return [format]
-
-  const tags: string[] = []
-  if (content.includes('"')) tags.push("DIALOGUE")
-  if (/\*\*[\s\S]+?\*\*/.test(content)) tags.push("THOUGHT")
-  // Test for *action* against the text with **thoughts** removed, so a line
-  // holding both is tagged with both rather than only THOUGHT.
-  if (/\*[^*\n]+\*/.test(content.replace(/\*\*[\s\S]+?\*\*/g, ""))) tags.push("ACTION")
-  return tags
+function explicitTypeOf(format: string, content: string): SegmentType | undefined {
+  const stored = SEGMENT_TYPES.find((t) => t === format)
+  if (!stored || stored === "NARRATION") return undefined
+  return messageTypes(content).length === 0 ? stored : undefined
 }
 
 export default function MessageItem({
@@ -109,7 +40,7 @@ export default function MessageItem({
 
   const hue = characterHue(message.character.id)
   const accent = `hsl(${hue}, 70%, 66%)`
-  const tags = tagsFor(message)
+  const explicitType = explicitTypeOf(message.format, message.content)
 
   const submitEdit = async () => {
     if (!draft.trim() || draft === message.content) {
@@ -169,14 +100,8 @@ export default function MessageItem({
               })}
             </span>
             {message.editedAt && <span className="text-[11px] text-muted">(edited)</span>}
-            {tags.map((t) => (
-              <span
-                key={t}
-                className="rounded border border-line bg-elevated px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted"
-              >
-                {t}
-              </span>
-            ))}
+            {/* No summary tags here: every line in the body is already labelled
+                with what it is, and repeating it by the name is just noise. */}
           </div>
         )}
 
@@ -221,9 +146,7 @@ export default function MessageItem({
             </div>
           </div>
         ) : (
-          <div className="whitespace-pre-wrap break-words">
-            <Body message={message} />
-          </div>
+          <MessageBody content={message.content} explicitType={explicitType} />
         )}
 
         {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}

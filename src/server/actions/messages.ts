@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { requireUserId, requireOwnedCharacter, requireWorldMembership } from "@/server/auth-guards"
 import {
   serializeMessage,
-  isMessageFormat,
+  isStoredFormat,
   MESSAGE_PAGE_SIZE,
   MAX_MESSAGE_LENGTH,
   type SerializedMessage,
@@ -46,7 +46,7 @@ export async function createMessage(
   const member = await requireWorldMembership(userId, worldId)
 
   const trimmed = cleanContent(content)
-  if (!isMessageFormat(format)) throw new Error("Unknown message format")
+  if (!isStoredFormat(format)) throw new Error("Unknown message format")
 
   let targetCharacterId = member.characterId
   if (overrideCharacterId && overrideCharacterId !== member.characterId) {

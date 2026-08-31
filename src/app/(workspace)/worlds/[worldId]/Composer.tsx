@@ -1,20 +1,10 @@
 "use client"
 
 import { useRef, useState } from "react"
-import {
-  Send,
-  Bold,
-  Italic,
-  Strikethrough,
-  Quote,
-  Link2,
-  ImageIcon,
-  Smile,
-  ChevronDown,
-  Loader2,
-} from "lucide-react"
+import { Send, Link2, ImageIcon, Smile, ChevronDown, Loader2, Eye } from "lucide-react"
 import { Avatar } from "@/components/layout/Sidebar"
-import { MESSAGE_FORMATS, type MessageFormat } from "@/lib/messages"
+import { SEGMENT_MARKERS, SEGMENT_STYLE, hasMarkers } from "@/lib/segments"
+import MessageBody from "./MessageBody"
 
 export type ComposerCharacter = {
   id: string
@@ -22,20 +12,8 @@ export type ComposerCharacter = {
   avatarUrl: string | null
 }
 
-const FORMAT_LABELS: Record<MessageFormat, string> = {
-  DIALOGUE: "dialogue",
-  ACTION: "action",
-  THOUGHT: "thought",
-  NARRATION: "narration",
-}
-
-/** Characters wrapped around a selection by the toolbar buttons. */
-const WRAPPERS = {
-  bold: ["**", "**"],
-  italic: ["*", "*"],
-  strike: ["~~", "~~"],
-  quote: ['"', '"'],
-} as const
+/** The kinds that can be applied to a selection. Narration is the absence of one. */
+const APPLICABLE = ["DIALOGUE", "ACTION", "THOUGHT"] as const
 
 const EMOJI = ["😊", "😢", "😠", "😅", "❤️", "🔥", "✨", "🗡️", "🌙", "👀", "😱", "🙏"]
 
@@ -49,32 +27,37 @@ export default function Composer({
   characters: ComposerCharacter[]
   activeCharacterId: string
   onChangeCharacter: (id: string) => void
-  onSend: (content: string, format: MessageFormat) => Promise<void>
+  onSend: (content: string) => Promise<void>
   disabled?: boolean
 }) {
   const [content, setContent] = useState("")
-  const [format, setFormat] = useState<MessageFormat>("NARRATION")
   const [sending, setSending] = useState(false)
   const [emojiOpen, setEmojiOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const active =
-    characters.find((c) => c.id === activeCharacterId) ?? characters[0] ?? null
+  const active = characters.find((c) => c.id === activeCharacterId) ?? characters[0] ?? null
+  const showPreview = hasMarkers(content)
 
-  /** Wraps the current selection, or inserts the markers at the caret. */
-  const wrap = (kind: keyof typeof WRAPPERS) => {
+  /**
+   * Wraps the selected words in a kind's markers.
+   *
+   * With nothing selected it inserts the markers and puts the caret between
+   * them, so the next thing typed lands inside.
+   */
+  const apply = (kind: (typeof APPLICABLE)[number]) => {
     const el = textareaRef.current
     if (!el) return
-    const [open, close] = WRAPPERS[kind]
+    const [open, close] = SEGMENT_MARKERS[kind]
     const { selectionStart: start, selectionEnd: end } = el
     const selected = content.slice(start, end)
-    const next = content.slice(0, start) + open + selected + close + content.slice(end)
-    setContent(next)
-    // Put the caret inside the markers so typing continues in the new style.
+
+    setContent(content.slice(0, start) + open + selected + close + content.slice(end))
     requestAnimationFrame(() => {
       el.focus()
-      const caret = start + open.length + selected.length
-      el.setSelectionRange(selected ? caret + close.length : caret, selected ? caret + close.length : caret)
+      const caret = selected
+        ? start + open.length + selected.length + close.length
+        : start + open.length
+      el.setSelectionRange(caret, caret)
     })
   }
 
@@ -85,8 +68,7 @@ export default function Composer({
       return
     }
     const { selectionStart: start, selectionEnd: end } = el
-    const next = content.slice(0, start) + text + content.slice(end)
-    setContent(next)
+    setContent(content.slice(0, start) + text + content.slice(end))
     requestAnimationFrame(() => {
       el.focus()
       el.setSelectionRange(start + text.length, start + text.length)
@@ -100,9 +82,9 @@ export default function Composer({
     const previous = content
     setContent("")
     try {
-      await onSend(text, format)
+      await onSend(text)
     } catch {
-      // Put the text back so nothing is lost when a send fails.
+      // Put the words back so nothing is lost when a send fails.
       setContent(previous)
     } finally {
       setSending(false)
@@ -111,24 +93,24 @@ export default function Composer({
 
   return (
     <div className="border-t border-line bg-surface/70 px-4 py-3 backdrop-blur md:px-6">
-      <div className="mx-auto max-w-4xl space-y-3">
+      <div className="mx-auto max-w-4xl space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-1.5">
-            {MESSAGE_FORMATS.map((f) => (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[11px] text-muted">Mark as:</span>
+            {APPLICABLE.map((kind) => (
               <button
-                key={f}
+                key={kind}
                 type="button"
-                onClick={() => setFormat(f)}
-                aria-pressed={format === f}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                  format === f
-                    ? "border-accent bg-accent/20 text-accent-soft"
-                    : "border-line text-muted hover:text-ink"
-                }`}
+                onClick={() => apply(kind)}
+                title={SEGMENT_STYLE[kind].hint}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition hover:brightness-125 ${SEGMENT_STYLE[kind].chip}`}
               >
-                {FORMAT_LABELS[f]}
+                {SEGMENT_STYLE[kind].label}
               </button>
             ))}
+            <span className="ml-1 hidden text-[11px] text-muted sm:inline">
+              select words, or click then type
+            </span>
           </div>
 
           {characters.length > 0 && (
@@ -147,14 +129,20 @@ export default function Composer({
                     </option>
                   ))}
                 </select>
-                <ChevronDown
-                  size={12}
-                  className="pointer-events-none absolute right-2 text-muted"
-                />
+                <ChevronDown size={12} className="pointer-events-none absolute right-2 text-muted" />
               </span>
             </label>
           )}
         </div>
+
+        {showPreview && (
+          <div className="rounded-xl border border-line bg-canvas/60 px-3 py-2">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+              <Eye size={11} /> How it will look
+            </div>
+            <MessageBody content={content} />
+          </div>
+        )}
 
         <div className="rounded-2xl border border-line bg-canvas focus-within:border-accent/60">
           <textarea
@@ -177,18 +165,6 @@ export default function Composer({
 
           <div className="flex items-center justify-between gap-2 border-t border-line px-2 py-1.5">
             <div className="flex items-center gap-0.5">
-              <ToolButton label="Bold" onClick={() => wrap("bold")}>
-                <Bold size={15} />
-              </ToolButton>
-              <ToolButton label="Italic" onClick={() => wrap("italic")}>
-                <Italic size={15} />
-              </ToolButton>
-              <ToolButton label="Strikethrough" onClick={() => wrap("strike")}>
-                <Strikethrough size={15} />
-              </ToolButton>
-              <ToolButton label="Quote" onClick={() => wrap("quote")}>
-                <Quote size={15} />
-              </ToolButton>
               <ToolButton label="Link" onClick={() => insert("[text](https://)")}>
                 <Link2 size={15} />
               </ToolButton>

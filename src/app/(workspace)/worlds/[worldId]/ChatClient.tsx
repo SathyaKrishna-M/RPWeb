@@ -9,7 +9,7 @@ import {
   fetchChangesSince,
   fetchOlderMessages,
 } from "@/server/actions/messages"
-import type { MessageFormat, SerializedMessage } from "@/lib/messages"
+import type { SerializedMessage } from "@/lib/messages"
 import MessageItem from "./MessageItem"
 import Composer, { type ComposerCharacter } from "./Composer"
 
@@ -200,9 +200,11 @@ export default function ChatClient({
     }
   }
 
-  const send = async (content: string, format: MessageFormat) => {
+  const send = async (content: string) => {
     stickToBottomRef.current = true
-    const saved = await createMessage(worldId, content, format, activeCharacterId)
+    // Stored as MIXED: the kinds live in the markers inside the text, so one
+    // post can hold speech, action and thought at once.
+    const saved = await createMessage(worldId, content, "MIXED", activeCharacterId)
     lastChangeRef.current = Date.now()
     // Keep the cursor ahead of our own write so the next poll does not
     // re-deliver it as though it were news.

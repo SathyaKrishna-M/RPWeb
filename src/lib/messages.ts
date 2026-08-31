@@ -17,8 +17,18 @@ export type MessageFormat = (typeof MESSAGE_FORMATS)[number]
  */
 export const LEGACY_MIXED_FORMAT = "MIXED"
 
-export function isMessageFormat(value: string): value is MessageFormat {
-  return (MESSAGE_FORMATS as readonly string[]).includes(value)
+/**
+ * What may be written to `Message.format`.
+ *
+ * MIXED is what the composer stores now: a post can hold speech, action and
+ * thought at once, and which is which lives in the markers inside the text.
+ * The four single kinds remain valid for imported history and for messages
+ * written before one post could mix them.
+ */
+export const STORED_FORMATS = [LEGACY_MIXED_FORMAT, ...MESSAGE_FORMATS] as const
+
+export function isStoredFormat(value: string) {
+  return (STORED_FORMATS as readonly string[]).includes(value)
 }
 
 /** The message shape sent to the browser: dates as ISO strings, no extra fields. */
