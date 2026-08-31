@@ -87,8 +87,12 @@ export default function WorldInfoPanel({
         World Info
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-line bg-elevated/50">
-        <WorldBanner name={world.name} url={shownBanner} />
+      <section className="rounded-2xl border border-line bg-elevated/50">
+        {/* Clip the banner alone, so its corners stay rounded without the
+            section cropping anything that follows it. */}
+        <div className="overflow-hidden rounded-t-2xl">
+          <WorldBanner name={world.name} url={shownBanner} />
+        </div>
 
         <div className="space-y-3 p-4">
           {editing ? (
@@ -195,6 +199,7 @@ export default function WorldInfoPanel({
         </button>
       </section>
 
+      {/* Fixed-size tiles, so overflow-hidden here only rounds the corners. */}
       <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line">
         <Stat label="Messages" value={String(messageCount)} />
         <Stat label="Members" value={String(participants.length)} />
