@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { requireUserId } from "@/server/auth-guards"
 import { serializeMessage, MESSAGE_PAGE_SIZE } from "@/lib/messages"
+import { avatarSrc } from "@/lib/characters"
 import WorldView from "./WorldView"
 
 export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
@@ -86,7 +87,7 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
         return {
           characterId: character.id,
           name: character.name,
-          avatarUrl: character.avatarUrl,
+          avatarUrl: avatarSrc(character),
           color: character.color,
           title: character.title,
           role: player?.role ?? null,
@@ -102,7 +103,7 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
       postAsCharacters={cast.map((c) => ({
         id: c.id,
         name: c.name,
-        avatarUrl: c.avatarUrl,
+        avatarUrl: avatarSrc(c),
         color: c.color,
       }))}
       defaultCharacterId={member.characterId}

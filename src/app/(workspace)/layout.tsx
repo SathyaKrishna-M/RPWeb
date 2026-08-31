@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Sidebar } from "@/components/layout/Sidebar"
+import { avatarSrc } from "@/lib/characters"
 
 export default async function WorkspaceLayout({
   children,
@@ -18,7 +19,7 @@ export default async function WorkspaceLayout({
   const character = await prisma.character.findFirst({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
-    select: { name: true, avatarUrl: true },
+    select: { id: true, name: true, avatarUrl: true, avatarUpdatedAt: true },
   })
 
   return (
@@ -26,7 +27,7 @@ export default async function WorkspaceLayout({
       <Sidebar
         user={{
           name: character?.name ?? session.user.name ?? "You",
-          avatarUrl: character?.avatarUrl ?? null,
+          avatarUrl: character ? avatarSrc(character) : null,
         }}
       />
       <main className="flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>

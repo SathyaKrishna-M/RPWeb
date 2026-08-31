@@ -36,3 +36,49 @@ export function fallbackColor(id: string) {
 export function characterColor(character: { id: string; color?: string | null }) {
   return character.color ?? fallbackColor(character.id)
 }
+
+/** Uploaded avatars are stored square at this size, in WebP. */
+export const AVATAR_SIZE = 256
+
+/** Refuse anything larger than a cropped 256px image could plausibly be. */
+export const MAX_AVATAR_BYTES = 400_000
+
+export const ALLOWED_AVATAR_MIME = ["image/webp", "image/jpeg", "image/png"] as const
+
+/**
+ * Where to load a character's picture from.
+ *
+ * An uploaded avatar is served by its own route rather than inlined, because
+ * this value is embedded in every message payload — a data URI here would be
+ * repeated for each message on screen. The route sends immutable cache headers,
+ * so `v` changes whenever the image does.
+ */
+export function avatarSrc(character: {
+  id: string
+  avatarUrl?: string | null
+  avatarUpdatedAt?: Date | string | null
+}): string | null {
+  if (character.avatarUpdatedAt) {
+    const version = new Date(character.avatarUpdatedAt).getTime()
+    return `/api/characters/${character.id}/avatar?v=${version}`
+  }
+  return character.avatarUrl ?? null
+}
+
+/** Splits a `data:` URL into its mime type and bytes. */
+export function parseDataUrl(dataUrl: string): { mime: string; bytes: Buffer } {
+  const match = /^data:([a-z]+\/[a-z0-9.+-]+);base64,(.+)$/i.exec(dataUrl.trim())
+  if (!match) throw new Error("Avatar image is not a valid data URL")
+
+  const mime = match[1].toLowerCase()
+  if (!(ALLOWED_AVATAR_MIME as readonly string[]).includes(mime)) {
+    throw new Error("Avatar must be a WebP, JPEG or PNG image")
+  }
+
+  const bytes = Buffer.from(match[2], "base64")
+  if (bytes.length === 0) throw new Error("Avatar image is empty")
+  if (bytes.length > MAX_AVATAR_BYTES) {
+    throw new Error(`Avatar image is too large (max ${Math.round(MAX_AVATAR_BYTES / 1000)} KB)`)
+  }
+  return { mime, bytes }
+}

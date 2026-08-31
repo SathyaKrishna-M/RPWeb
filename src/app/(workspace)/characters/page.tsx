@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { requireUserId } from "@/server/auth-guards"
-import { characterColor } from "@/lib/characters"
+import { characterColor, avatarSrc } from "@/lib/characters"
 import { Avatar } from "@/components/layout/Sidebar"
 import { Plus, Users, Pencil } from "lucide-react"
 
@@ -63,7 +63,7 @@ export default async function CharactersPage() {
                 style={{ borderTop: `3px solid ${color}` }}
               >
                 <div className="mb-4 flex items-center gap-3">
-                  <Avatar name={char.name} src={char.avatarUrl} size={48} ring={color} />
+                  <Avatar name={char.name} src={avatarSrc(char)} size={48} ring={color} />
                   <div className="min-w-0">
                     <h3 className="truncate text-lg font-semibold" style={{ color }}>
                       {char.name}

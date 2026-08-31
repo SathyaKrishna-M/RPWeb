@@ -1,4 +1,5 @@
 import type { Character, Message } from "@prisma/client"
+import { avatarSrc } from "@/lib/characters"
 
 /** How many messages the chat loads per page. */
 export const MESSAGE_PAGE_SIZE = 200
@@ -63,7 +64,9 @@ export function serializeMessage(message: Message & { character: Character }): S
     character: {
       id: message.character.id,
       name: message.character.name,
-      avatarUrl: message.character.avatarUrl,
+      // Resolved here, so the client never needs to know whether the picture
+      // was uploaded or linked. Stays a short URL either way.
+      avatarUrl: avatarSrc(message.character),
       color: message.character.color,
     },
   }

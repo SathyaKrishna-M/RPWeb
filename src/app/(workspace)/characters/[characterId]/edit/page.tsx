@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { editCharacter } from "@/server/actions/characters"
 import { requireUserId } from "@/server/auth-guards"
+import { avatarSrc } from "@/lib/characters"
 import CharacterForm from "@/components/characters/CharacterForm"
 
 export default async function EditCharacterPage(
@@ -51,6 +52,7 @@ export default async function EditCharacterPage(
               name: character.name,
               title: character.title ?? "",
               avatarUrl: character.avatarUrl ?? "",
+              avatarSrc: avatarSrc(character),
               color: character.color ?? "",
               bio: character.bio ?? "",
             }}

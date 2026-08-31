@@ -22,22 +22,39 @@ model User {
 }
 
 model Character {
-  id        String   @id @default(cuid())
+  id              String    @id @default(cuid())
   /// Who created it. Not who may use it — that follows from the world's cast.
-  userId    String
-  name      String
-  avatarUrl String?
-  bio       String?
+  userId          String
+  name            String
+  /// An externally hosted image. Used when no avatar has been uploaded.
+  avatarUrl       String?
+  /// Set when an uploaded avatar exists. Doubles as the cache-busting version
+  /// for the image route, so the bytes can be served as immutable.
+  avatarUpdatedAt DateTime?
+  bio             String?
   /// Accent colour as #rrggbb. Falls back to a hue derived from the id.
-  color     String?
-  title     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  color           String?
+  title           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   worldMembers WorldMember[]
   messages     Message[]
   worlds       WorldCharacter[]
+  avatar       CharacterAvatar?
+}
+
+/// Uploaded avatar bytes, kept out of Character on purpose: every message query
+/// includes its character, and a Bytes column there would drag the image into
+/// each one. Read only by the image route.
+model CharacterAvatar {
+  characterId String   @id
+  data        Bytes
+  mime        String
+  updatedAt   DateTime @updatedAt
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 }
 
 model World {

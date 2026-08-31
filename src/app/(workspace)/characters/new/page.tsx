@@ -16,7 +16,7 @@ export default function NewCharacterPage() {
           <CharacterForm
             action={createCharacter}
             submitLabel="Create Character"
-            defaults={{ name: "", title: "", avatarUrl: "", color: "", bio: "" }}
+            defaults={{ name: "", title: "", avatarUrl: "", avatarSrc: null, color: "", bio: "" }}
           />
         </div>
       </div>

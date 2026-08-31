@@ -3,12 +3,16 @@
 import { useState } from "react"
 import { Loader2, User as UserIcon } from "lucide-react"
 import { CHARACTER_COLORS, fallbackColor } from "@/lib/characters"
+import AvatarPicker from "./AvatarPicker"
 
 export type CharacterDefaults = {
   id?: string
   name: string
   title: string
+  /** External image URL, if one was set instead of an upload. */
   avatarUrl: string
+  /** Where the current picture loads from, upload or URL. */
+  avatarSrc: string | null
   color: string
   bio: string
 }
@@ -34,6 +38,12 @@ export default function CharacterForm({
   const [color, setColor] = useState(defaults.color)
   const [pending, setPending] = useState(false)
 
+  // A freshly cropped image, as a data URL. Empty string means "remove the
+  // current one"; null means "leave whatever is stored alone".
+  const [croppedAvatar, setCroppedAvatar] = useState<string | null>(null)
+
+  const shownAvatar = croppedAvatar ?? (croppedAvatar === "" ? "" : defaults.avatarSrc) ?? avatarUrl
+
   const shown = color || fallbackColor(defaults.id ?? (name || "new"))
 
   return (
@@ -49,7 +59,7 @@ export default function CharacterForm({
       className="space-y-6"
     >
       <section className="flex items-center gap-4 rounded-2xl border border-line bg-canvas p-4">
-        <Preview name={name} avatarUrl={avatarUrl} color={shown} />
+        <Preview name={name} avatarUrl={shownAvatar || ""} color={shown} />
         <div className="min-w-0">
           <div className="truncate text-lg font-semibold" style={{ color: shown }}>
             {name || "Unnamed character"}
@@ -85,12 +95,39 @@ export default function CharacterForm({
         </Field>
       </div>
 
-      <Field label="Avatar image URL" hint="Paste a link to an image. Left empty, the initial is used.">
+      <Field label="Picture" hint="Upload one and crop it, or paste a link below.">
+        {/* Carries the cropped image to the server. Absent when untouched, so
+            saving other fields leaves an existing picture alone. */}
+        {croppedAvatar !== null && (
+          <input type="hidden" name="avatarImage" value={croppedAvatar} />
+        )}
+        <div className="mt-2">
+          <AvatarPicker
+            value={shownAvatar || null}
+            externalUrl={avatarUrl}
+            onChange={(dataUrl) => {
+              setCroppedAvatar(dataUrl)
+              // An upload supersedes a linked image.
+              setAvatarUrl("")
+            }}
+            onClear={() => {
+              setCroppedAvatar("")
+              setAvatarUrl("")
+            }}
+          />
+        </div>
+      </Field>
+
+      <Field label="Image URL" hint="Used when no picture has been uploaded.">
         <input
           name="avatarUrl"
           type="url"
           value={avatarUrl}
-          onChange={(e) => setAvatarUrl(e.target.value)}
+          onChange={(e) => {
+            setAvatarUrl(e.target.value)
+            // Typing a link means the upload is no longer what you want.
+            if (e.target.value) setCroppedAvatar("")
+          }}
           placeholder="https://..."
           className={inputClass}
         />
