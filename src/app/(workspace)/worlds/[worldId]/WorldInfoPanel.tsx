@@ -28,7 +28,6 @@ export type PanelWorld = {
   inviteCode: string
   createdAt: string
   importedAt: string | null
-  ownedByYou: boolean
 }
 
 export default function WorldInfoPanel({
@@ -163,14 +162,14 @@ export default function WorldInfoPanel({
                   {world.description || "No description yet."}
                 </p>
               </div>
-              {world.ownedByYou && (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-muted transition hover:border-accent/50 hover:text-ink"
-                >
-                  <Pencil size={12} /> Edit
-                </button>
-              )}
+              {/* Shown to every member: only members reach this page at all,
+                  and the world is theirs to shape as much as the owner's. */}
+              <button
+                onClick={() => setEditing(true)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-muted transition hover:border-accent/50 hover:text-ink"
+              >
+                <Pencil size={12} /> Edit
+              </button>
             </div>
           )}
         </div>

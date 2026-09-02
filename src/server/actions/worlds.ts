@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { requireUserId, requireOwnedCharacter } from "@/server/auth-guards"
+import { requireUserId, requireOwnedCharacter, requireWorldMembership } from "@/server/auth-guards"
 import { generateInviteCode } from "@/lib/invite-code"
 import { parseDataUrl, MAX_BANNER_BYTES } from "@/lib/characters"
 
@@ -100,12 +100,9 @@ export async function joinWorld(formData: FormData) {
 export async function updateWorld(worldId: string, formData: FormData) {
   const userId = await requireUserId()
 
-  const world = await prisma.world.findUnique({
-    where: { id: worldId },
-    select: { ownerId: true },
-  })
-  if (!world) throw new Error("World not found")
-  if (world.ownerId !== userId) throw new Error("Only the world owner can edit it")
+  // Anyone in the world may change how it looks, like the cast and the story
+  // itself. Ownership only records who created it.
+  await requireWorldMembership(userId, worldId)
 
   const name = (formData.get("name") as string | null)?.trim()
   const description = (formData.get("description") as string | null)?.trim() || null

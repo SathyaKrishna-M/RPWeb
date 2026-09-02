@@ -82,7 +82,6 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
         inviteCode: world.inviteCode,
         createdAt: world.createdAt.toISOString(),
         importedAt: world.imports[0]?.createdAt.toISOString() ?? null,
-        ownedByYou: world.ownerId === userId,
       }}
       participants={cast.map((character) => {
         const player = world.members.find((m) => m.characterId === character.id)
