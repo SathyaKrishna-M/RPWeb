@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Send, Link2, ImageIcon, Smile, ChevronDown, Loader2, Eye } from "lucide-react"
 import { Avatar } from "@/components/layout/Sidebar"
 import { SEGMENT_MARKERS, SEGMENT_STYLE, hasMarkers } from "@/lib/segments"
@@ -38,6 +38,24 @@ export default function Composer({
 
   const active = characters.find((c) => c.id === activeCharacterId) ?? characters[0] ?? null
   const showPreview = hasMarkers(content)
+
+  /**
+   * Whether Enter sends the message.
+   *
+   * On a touch keyboard it must not: Enter is the only convenient way to start
+   * a new line, and there is no comfortable Shift, so pressing it to break a
+   * paragraph would fire the message off half-written. Those devices send with
+   * the button instead. Detected by pointer type rather than screen width, so a
+   * tablet with a real keyboard is judged on how it is actually being used.
+   */
+  const [enterSends, setEnterSends] = useState(true)
+  useEffect(() => {
+    const coarse = window.matchMedia("(pointer: coarse)")
+    const update = () => setEnterSends(!coarse.matches)
+    update()
+    coarse.addEventListener("change", update)
+    return () => coarse.removeEventListener("change", update)
+  }, [])
 
   /**
    * Wraps the selected words in a kind's markers.
@@ -93,18 +111,20 @@ export default function Composer({
   }
 
   return (
-    <div className="border-t border-line bg-surface/70 px-4 py-3 backdrop-blur md:px-6">
-      <div className="mx-auto max-w-4xl space-y-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="shrink-0 border-t border-line bg-surface/70 px-3 py-2 backdrop-blur md:px-6 md:py-3">
+      <div className="mx-auto max-w-4xl space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[11px] text-muted">Mark as:</span>
+            {/* The labels are the first thing to go on a narrow screen: the
+                pills are colour-coded and the avatar names itself. */}
+            <span className="mr-1 hidden text-[11px] text-muted sm:inline">Mark as:</span>
             {APPLICABLE.map((kind) => (
               <button
                 key={kind}
                 type="button"
                 onClick={() => apply(kind)}
                 title={SEGMENT_STYLE[kind].hint}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition hover:brightness-125 ${SEGMENT_STYLE[kind].chip}`}
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition hover:brightness-125 md:px-3 md:py-1.5 ${SEGMENT_STYLE[kind].chip}`}
               >
                 {SEGMENT_STYLE[kind].label}
               </button>
@@ -116,7 +136,7 @@ export default function Composer({
 
           {characters.length > 0 && (
             <label className="flex items-center gap-2 text-xs text-muted">
-              Posting as:
+              <span className="hidden sm:inline">Posting as:</span>
               <span className="relative flex items-center gap-2 rounded-full border border-line bg-elevated py-1 pl-1 pr-2">
                 {active && <Avatar name={active.name} src={active.avatarUrl} size={22} />}
                 <select
@@ -152,14 +172,18 @@ export default function Composer({
             disabled={disabled}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (enterSends && e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()
                 void send()
               }
             }}
             rows={3}
             placeholder={
-              active ? `Write as ${active.name}... (Shift + Enter for new line)` : "Write..."
+              active
+                ? enterSends
+                  ? `Write as ${active.name}... (Shift + Enter for new line)`
+                  : `Write as ${active.name}...`
+                : "Write..."
             }
             className="w-full resize-y bg-transparent p-3 text-sm text-ink placeholder-muted focus:outline-none"
           />

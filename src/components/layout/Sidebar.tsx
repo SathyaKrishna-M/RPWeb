@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, Users, Globe, Upload, Settings, LogOut, Feather } from "lucide-react"
 import { signOutAction } from "@/server/actions/session"
+import { isWorldChatPath } from "@/lib/routes"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -22,6 +23,9 @@ export function Sidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname()
   // Exact match or a child route, so "/worlds" does not stay lit on "/worldsfoo".
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+  // The chat needs the whole screen on a phone; the header's back arrow is the
+  // way out, so nothing becomes unreachable.
+  const hideMobileNav = isWorldChatPath(pathname)
 
   return (
     <>
@@ -83,7 +87,11 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       </aside>
 
       {/* Mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-line bg-surface px-2 pb-safe">
+      <nav
+        className={`${
+          hideMobileNav ? "hidden" : "flex"
+        } md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 items-center justify-around border-t border-line bg-surface px-2 pb-safe`}
+      >
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href)
           return (

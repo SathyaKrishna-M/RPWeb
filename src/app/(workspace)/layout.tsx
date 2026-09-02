@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Sidebar } from "@/components/layout/Sidebar"
+import { WorkspaceMain } from "@/components/layout/WorkspaceMain"
 import { avatarSrc } from "@/lib/characters"
 
 export default async function WorkspaceLayout({
@@ -30,7 +31,7 @@ export default async function WorkspaceLayout({
           avatarUrl: character ? avatarSrc(character) : null,
         }}
       />
-      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
+      <WorkspaceMain>{children}</WorkspaceMain>
     </div>
   )
 }
