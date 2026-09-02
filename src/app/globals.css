@@ -6,10 +6,13 @@
  * mood of the app is then a change to this block, not a sweep through markup.
  */
 @theme {
-  --color-canvas: #0a0a12;
-  --color-surface: #12121c;
-  --color-elevated: #191926;
-  --color-line: #242438;
+  /* True black behind everything. The tones above it are kept close together
+     so panels lift off the background without turning grey, and `line` stays
+     bright enough to remain a visible edge against black. */
+  --color-canvas: #000000;
+  --color-surface: #0b0b11;
+  --color-elevated: #16161d;
+  --color-line: #26262f;
   --color-ink: #e7e7f2;
   --color-muted: #8b8ba7;
   --color-accent: #7c5cff;
