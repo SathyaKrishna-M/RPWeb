@@ -29,31 +29,32 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
 
   const world = member.world
 
-  // Load the NEWEST page, not the oldest: reading ascending with a fixed take
-  // meant that once a world passed the limit the chat froze on its opening
-  // scenes and nothing newly written was ever visible.
-  const recent = await prisma.message.findMany({
-    where: { worldId, deletedAt: null },
-    orderBy: { timestamp: "desc" },
-    include: { character: true },
-    take: MESSAGE_PAGE_SIZE + 1,
-  })
+  // These three do not depend on each other, so they go together: each query
+  // is a separate trip to the database, and run one after another they add up
+  // to most of the time before the page can render.
+  const [recent, totalMessageCount, newestChange] = await Promise.all([
+    // The NEWEST page, not the oldest: reading ascending with a fixed take
+    // meant that once a world passed the limit the chat froze on its opening
+    // scenes and nothing newly written was ever visible.
+    prisma.message.findMany({
+      where: { worldId, deletedAt: null },
+      orderBy: { timestamp: "desc" },
+      include: { character: true },
+      take: MESSAGE_PAGE_SIZE + 1,
+    }),
+    prisma.message.count({ where: { worldId, deletedAt: null } }),
+    // The polling cursor starts at the newest change already on screen, so the
+    // first poll asks only for what happened after this render.
+    prisma.message.findFirst({
+      where: { worldId },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
+    }),
+  ])
 
   const hasOlder = recent.length > MESSAGE_PAGE_SIZE
   const page = hasOlder ? recent.slice(0, MESSAGE_PAGE_SIZE) : recent
   const messages = page.reverse().map(serializeMessage)
-
-  const totalMessageCount = await prisma.message.count({
-    where: { worldId, deletedAt: null },
-  })
-
-  // The polling cursor starts at the newest change we are already showing, so
-  // the first poll asks only for what happened after this render.
-  const newestChange = await prisma.message.findFirst({
-    where: { worldId },
-    orderBy: { updatedAt: "desc" },
-    select: { updatedAt: true },
-  })
 
   // Anyone in the world may write as anyone in its cast, so the choices in the
   // composer come from the world rather than from what this person created.

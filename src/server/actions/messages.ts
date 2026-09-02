@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { requireUserId, requireCastCharacter, requireWorldMembership } from "@/server/auth-guards"
+import { requireUserId } from "@/server/auth-guards"
 import {
   serializeMessage,
   isStoredFormat,
@@ -49,14 +49,32 @@ export async function createMessage(
   overrideCharacterId?: string
 ): Promise<SerializedMessage> {
   const userId = await requireUserId()
-  const member = await requireWorldMembership(userId, worldId)
 
   const trimmed = cleanContent(content)
   if (!isStoredFormat(format)) throw new Error("Unknown message format")
 
+  // Membership and cast membership are independent facts, so they are checked
+  // in one trip rather than three: requireCastCharacter would otherwise repeat
+  // the membership lookup this already needs.
+  const [member, castEntry] = await Promise.all([
+    prisma.worldMember.findUnique({
+      where: { worldId_userId: { worldId, userId } },
+      select: { characterId: true },
+    }),
+    overrideCharacterId
+      ? prisma.worldCharacter.findUnique({
+          where: { worldId_characterId: { worldId, characterId: overrideCharacterId } },
+          select: { characterId: true },
+        })
+      : Promise.resolve(null),
+  ])
+
+  if (!member) throw new Error("Not a member of this world")
+
   let targetCharacterId = member.characterId
   if (overrideCharacterId && overrideCharacterId !== member.characterId) {
-    targetCharacterId = await requireCastCharacter(userId, worldId, overrideCharacterId)
+    if (!castEntry) throw new Error("That character is not part of this world")
+    targetCharacterId = castEntry.characterId
   }
 
   const message = await prisma.message.create({
@@ -109,17 +127,26 @@ export async function fetchChangesSince(
   cursor: string
 ): Promise<{ messages: SerializedMessage[]; deletedIds: string[]; cursor: string }> {
   const userId = await requireUserId()
-  await requireWorldMembership(userId, worldId)
 
   const since = new Date(cursor)
   if (Number.isNaN(since.getTime())) throw new Error("Invalid cursor")
 
-  const changed = await prisma.message.findMany({
-    where: { worldId, updatedAt: { gt: since } },
-    orderBy: { updatedAt: "asc" },
-    include: { character: true },
-    take: 500,
-  })
+  // This runs every few seconds for as long as a world is open, so the
+  // membership check goes alongside the fetch rather than before it. The rows
+  // are discarded unless the check passes, so nothing leaks by reading early.
+  const [member, changed] = await Promise.all([
+    prisma.worldMember.findUnique({
+      where: { worldId_userId: { worldId, userId } },
+      select: { id: true },
+    }),
+    prisma.message.findMany({
+      where: { worldId, updatedAt: { gt: since } },
+      orderBy: { updatedAt: "asc" },
+      include: { character: true },
+      take: 500,
+    }),
+  ])
+  if (!member) throw new Error("Not a member of this world")
 
   const live = changed.filter((m) => !m.deletedAt)
   const deletedIds = changed.filter((m) => m.deletedAt).map((m) => m.id)
@@ -134,17 +161,23 @@ export async function fetchOlderMessages(
   beforeTimestamp: string
 ): Promise<{ messages: SerializedMessage[]; hasMore: boolean }> {
   const userId = await requireUserId()
-  await requireWorldMembership(userId, worldId)
 
   const before = new Date(beforeTimestamp)
   if (Number.isNaN(before.getTime())) throw new Error("Invalid timestamp")
 
-  const messages = await prisma.message.findMany({
-    where: { worldId, deletedAt: null, timestamp: { lt: before } },
-    orderBy: { timestamp: "desc" },
-    include: { character: true },
-    take: MESSAGE_PAGE_SIZE + 1,
-  })
+  const [member, messages] = await Promise.all([
+    prisma.worldMember.findUnique({
+      where: { worldId_userId: { worldId, userId } },
+      select: { id: true },
+    }),
+    prisma.message.findMany({
+      where: { worldId, deletedAt: null, timestamp: { lt: before } },
+      orderBy: { timestamp: "desc" },
+      include: { character: true },
+      take: MESSAGE_PAGE_SIZE + 1,
+    }),
+  ])
+  if (!member) throw new Error("Not a member of this world")
 
   const hasMore = messages.length > MESSAGE_PAGE_SIZE
   const page = hasMore ? messages.slice(0, MESSAGE_PAGE_SIZE) : messages
