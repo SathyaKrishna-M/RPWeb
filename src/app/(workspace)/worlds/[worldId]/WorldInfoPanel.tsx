@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { Copy, Check, Crown, Info, Pencil, Settings, X, Loader2 } from "lucide-react"
+import { Copy, Check, Crown, Info, Pencil, Settings, X, Loader2, UserPlus } from "lucide-react"
 import { Avatar } from "@/components/layout/Sidebar"
-import { updateWorld } from "@/server/actions/worlds"
+import { updateWorld, addCharacterToWorld } from "@/server/actions/worlds"
 import { characterColor, fallbackColor, BANNER_WIDTH, BANNER_ASPECT } from "@/lib/characters"
 import ImagePicker from "@/components/media/ImagePicker"
 
@@ -15,6 +15,13 @@ export type PanelParticipant = {
   title: string | null
   role: string | null
   isYou: boolean
+}
+
+/** One of your characters that is not in this world yet. */
+export type AddableCharacter = {
+  id: string
+  name: string
+  color: string | null
 }
 
 export type PanelWorld = {
@@ -33,10 +40,12 @@ export type PanelWorld = {
 export default function WorldInfoPanel({
   world,
   participants,
+  addableCharacters,
   messageCount,
 }: {
   world: PanelWorld
   participants: PanelParticipant[]
+  addableCharacters: AddableCharacter[]
   messageCount: number
 }) {
   const [copied, setCopied] = useState<"code" | "link" | null>(null)
@@ -47,6 +56,8 @@ export default function WorldInfoPanel({
   // A freshly cropped banner, as a data URL. Empty string means "remove";
   // null means "leave whatever is stored alone".
   const [croppedBanner, setCroppedBanner] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [toAdd, setToAdd] = useState("")
   const shownBanner = croppedBanner === null ? world.bannerSrc : croppedBanner || null
 
   const copy = async (what: "code" | "link") => {
@@ -78,6 +89,21 @@ export default function WorldInfoPanel({
   }
 
   const formatDate = (iso: string) => new Date(iso).toLocaleDateString()
+
+  const addCharacter = async () => {
+    const characterId = toAdd || addableCharacters[0]?.id
+    if (!characterId) return
+    setAdding(true)
+    setError(null)
+    try {
+      await addCharacterToWorld(world.id, characterId)
+      setToAdd("")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add that character")
+    } finally {
+      setAdding(false)
+    }
+  }
 
   return (
     <aside className="hidden xl:flex min-h-0 w-[340px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-line bg-surface p-4">
@@ -247,6 +273,34 @@ export default function WorldInfoPanel({
             </li>
           ))}
         </ul>
+
+        {addableCharacters.length > 0 && (
+          <div className="space-y-2 border-t border-line pt-3">
+            <div className="text-[11px] text-muted">Bring another of your characters in</div>
+            <div className="flex gap-2">
+              <select
+                value={toAdd || addableCharacters[0].id}
+                onChange={(e) => setToAdd(e.target.value)}
+                className="min-w-0 flex-1 rounded-lg border border-line bg-canvas px-2 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
+              >
+                {addableCharacters.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-elevated">
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void addCharacter()}
+                disabled={adding}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-elevated px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-accent/50 disabled:opacity-50"
+              >
+                {adding ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                Add
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <a

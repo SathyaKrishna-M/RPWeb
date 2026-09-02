@@ -64,6 +64,15 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
     .filter((m) => m.role === "OWNER")
     .map((m) => m.characterId)
 
+  // Characters this person created that are not in this world yet, so they can
+  // be brought in. Everything already in the cast is usable by every member.
+  const inCast = new Set(cast.map((c) => c.id))
+  const myCharacters = await prisma.character.findMany({
+    where: { userId, id: { notIn: [...inCast] } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, color: true },
+  })
+
   return (
     <WorldView
       world={{
@@ -83,6 +92,7 @@ export default async function WorldPage(props: PageProps<"/worlds/[worldId]">) {
         createdAt: world.createdAt.toISOString(),
         importedAt: world.imports[0]?.createdAt.toISOString() ?? null,
       }}
+      addableCharacters={myCharacters}
       participants={cast.map((character) => {
         const player = world.members.find((m) => m.characterId === character.id)
         return {

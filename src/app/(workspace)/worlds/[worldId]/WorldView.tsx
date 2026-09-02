@@ -3,7 +3,11 @@
 import { useCallback, useState } from "react"
 import ChatClient from "./ChatClient"
 import WorldHeader, { type WorldHeaderWorld } from "./WorldHeader"
-import WorldInfoPanel, { type PanelParticipant, type PanelWorld } from "./WorldInfoPanel"
+import WorldInfoPanel, {
+  type AddableCharacter,
+  type PanelParticipant,
+  type PanelWorld,
+} from "./WorldInfoPanel"
 import type { ComposerCharacter } from "./Composer"
 import type { SerializedMessage } from "@/lib/messages"
 
@@ -17,6 +21,7 @@ export default function WorldView({
   world,
   panelWorld,
   participants,
+  addableCharacters,
   initialMessages,
   initialHasOlder,
   initialCursor,
@@ -30,6 +35,7 @@ export default function WorldView({
   world: WorldHeaderWorld
   panelWorld: PanelWorld
   participants: PanelParticipant[]
+  addableCharacters: AddableCharacter[]
   initialMessages: SerializedMessage[]
   initialHasOlder: boolean
   initialCursor: string
@@ -67,6 +73,7 @@ export default function WorldView({
       <WorldInfoPanel
         world={panelWorld}
         participants={participants}
+        addableCharacters={addableCharacters}
         messageCount={messageCount}
       />
     </div>

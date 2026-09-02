@@ -152,3 +152,31 @@ async function applyBannerImage(worldId: string, raw: FormDataEntryValue | null)
     data: { bannerUpdatedAt: new Date() },
   })
 }
+
+/**
+ * Brings one of your characters into a world's cast.
+ *
+ * Characters and worlds are created independently, so a character made after
+ * a world exists had no way in: the cast was only ever filled when a world was
+ * created, joined, or imported. Once added, every member can write as it, like
+ * the rest of the cast.
+ */
+export async function addCharacterToWorld(worldId: string, characterId: string) {
+  const userId = await requireUserId()
+
+  // You may add a character you created. Everything already in the cast is
+  // usable by everyone, but bringing a new face in is the author's call.
+  const [, ownedCharacterId] = await Promise.all([
+    requireWorldMembership(userId, worldId),
+    requireOwnedCharacter(userId, characterId),
+  ])
+
+  await prisma.worldCharacter.upsert({
+    where: { worldId_characterId: { worldId, characterId: ownedCharacterId } },
+    create: { worldId, characterId: ownedCharacterId },
+    update: {},
+  })
+
+  revalidatePath(`/worlds/${worldId}`)
+  revalidatePath("/characters")
+}
