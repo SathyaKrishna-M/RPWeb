@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="s" x1="0.1" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.3" stop-color="#ececf8"/>
+      <stop offset="0.52" stop-color="#b6b6d6"/>
+      <stop offset="0.7" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#c8c8e6"/>
+    </linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d5cdff"/>
+      <stop offset="0.5" stop-color="#7c5cff"/>
+      <stop offset="1" stop-color="#d5cdff"/>
+    </linearGradient>
+    <radialGradient id="g">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.45" stop-color="#c4b5fd"/>
+      <stop offset="1" stop-color="#6d47ff"/>
+    </radialGradient>
+    <g id="h" fill="url(#s)">
+      <path fill-rule="evenodd" d="M26.5 16 H17 C10.4 16 6 20 6 25.5 C6 31 10.4 35 17 35 H26.5 Z M26.5 21.8 H17.4 C14.4 21.8 12.6 23.3 12.6 25.5 C12.6 27.7 14.4 29.2 17.4 29.2 H26.5 Z"/>
+      <rect x="26.5" y="16" width="6" height="32" rx="0.8"/>
+      <path d="M26.5 32 L26.5 39.5 L15.4 48 L7.2 48 Z"/>
+    </g>
+  </defs>
+
+  <!-- A tab favicon sits on whatever colour the browser chooses, so unlike the
+       in-app mark this one carries its own dark disc behind it. -->
+  <circle cx="32" cy="32" r="31" fill="#08080d"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="url(#r)" stroke-width="2.2" opacity="0.9"/>
+
+  <g transform="translate(32 32) scale(0.84) translate(-32 -32)">
+    <use href="#h"/>
+    <use href="#h" transform="translate(64,0) scale(-1,1)"/>
+    <g fill="url(#s)">
+      <path d="M32 6 L34.6 28 L32 31.2 L29.4 28 Z"/>
+      <path d="M32 58 L29.4 36 L32 32.8 L34.6 36 Z"/>
+    </g>
+    <path d="M32 25.6 L37.4 32 L32 38.4 L26.6 32 Z" fill="url(#g)"/>
+  </g>
+</svg>

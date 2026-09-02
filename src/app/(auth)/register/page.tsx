@@ -4,6 +4,7 @@ import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { Logo } from "@/components/brand/Logo"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -54,6 +55,9 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
       <div className="w-full max-w-md space-y-8 rounded-xl border border-line bg-surface p-8 shadow-2xl">
         <div className="text-center">
+          <span className="mb-5 inline-flex justify-center">
+            <Logo size={64} />
+          </span>
           <h2 className="text-3xl font-bold tracking-tight text-white">Join the story</h2>
           <p className="mt-2 text-sm text-muted">Create your account to start roleplaying</p>
         </div>

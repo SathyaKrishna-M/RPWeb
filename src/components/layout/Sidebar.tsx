@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Users, Globe, Upload, Settings, LogOut, Feather } from "lucide-react"
+import { Home, Users, Globe, Upload, Settings, LogOut } from "lucide-react"
 import { signOutAction } from "@/server/actions/session"
 import { isWorldChatPath } from "@/lib/routes"
+import { Wordmark } from "@/components/brand/Logo"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -31,11 +32,8 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     <>
       {/* Desktop */}
       <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-line bg-surface">
-        <div className="flex h-16 shrink-0 items-center gap-2.5 px-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
-            <Feather size={18} />
-          </span>
-          <span className="text-lg font-semibold tracking-tight text-ink">RPWeb</span>
+        <div className="flex h-16 shrink-0 items-center px-4">
+          <Wordmark size={30} />
         </div>
 
         {/* min-h-0 is what lets this shrink: a flex item defaults to
